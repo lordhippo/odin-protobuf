@@ -43,6 +43,28 @@ decode_varint :: proc(buffer: []u8, index: ^int) -> (u128, bool) {
 	return value, error == .None
 }
 
+decode_i32 :: proc(buffer: []u8, index: ^int) -> (i32, bool) {
+	if index^ + size_of(i32le) >= len(buffer) {
+		return 0, false
+	}
+
+	value_le := (^i32le)(&buffer[index^])^
+	index^ += size_of(i32le)
+
+	return i32(value_le), true
+}
+
+decode_i64 :: proc(buffer: []u8, index: ^int) -> (i64, bool) {
+	if index^ + size_of(i64le) >= len(buffer) {
+		return 0, false
+	}
+
+	value_le := (^i64le)(&buffer[index^])^
+	index^ += size_of(i64le)
+
+	return i64(value_le), true
+}
+
 decode_tag :: proc(buffer: []u8, index: ^int) -> (tag: Tag, ok: bool) {
 	value := decode_varint(buffer, index) or_return
 	ok = true
@@ -59,8 +81,17 @@ decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok
 			value = decode_varint(buffer, index) or_return
 			ok = true
 		case .I32:
+			value = decode_i32(buffer, index) or_return
+			ok = true
 		case .I64:
+			value = decode_i64(buffer, index) or_return
+			ok = true
 		case .LEN:
+			len := int(decode_varint(buffer, index) or_return)
+			value = make([dynamic]u8, len)
+			copy(value.([dynamic]u8)[:], buffer[index^:index^ + len])
+			index^ += len
+			ok = true
 		case .SGROUP, .EGROUP:
 			fmt.eprintf("%v field type is deprecated\n", type)
 	}
