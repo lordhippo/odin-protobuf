@@ -34,7 +34,7 @@ Field :: struct {
 }
 
 Message :: struct {
-	fields: [dynamic]Field,
+	fields: map[u32]Field,
 }
 
 decode_varint :: proc(buffer: []u8, index: ^int) -> (u128, bool) {
@@ -100,17 +100,19 @@ decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok
 }
 
 decode :: proc(buffer: []u8) -> (message: Message, ok: bool) {
-	for index := 0; index < len(buffer); {
-		append_nothing(&message.fields)
-		field := &message.fields[len(message.fields) - 1]
+	message.fields = make(map[u32]Field)
 
-		field.tag = decode_tag(buffer, &index) or_return
-		field.value = decode_value(buffer, field.tag.type, &index) or_return
+	for index := 0; index < len(buffer); {
+		tag := decode_tag(buffer, &index) or_return
+
+		// TODO: merge fields
+		message.fields[tag.field_number] = {
+			tag   = tag,
+			value = decode_value(buffer, tag.type, &index) or_return,
+		}
 	}
 
-	ok = true
-
-	return message, ok
+	return message, true
 }
 
 encode :: proc(message: Message) -> (buffer: []u8, ok: bool) {
