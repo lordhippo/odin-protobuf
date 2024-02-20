@@ -3,6 +3,35 @@ package protobuf
 // This is an implementation of the protobuf wire format
 // https://protobuf.dev/programming-guides/encoding/
 
+// message    := (tag value)*
+// 
+// tag        := (field << 3) bit-or wire_type;
+//                 encoded as uint32 varint
+// value      := varint      for wire_type == VARINT,
+//               i32         for wire_type == I32,
+//               i64         for wire_type == I64,
+//               len-prefix  for wire_type == LEN,
+//               <empty>     for wire_type == SGROUP or EGROUP
+// 
+// varint     := int32 | int64 | uint32 | uint64 | bool | enum | sint32 | sint64;
+//                 encoded as varints (sintN are ZigZag-encoded first)
+// i32        := sfixed32 | fixed32 | float;
+//                 encoded as 4-byte little-endian;
+//                 memcpy of the equivalent C types (u?int32_t, float)
+// i64        := sfixed64 | fixed64 | double;
+//                 encoded as 8-byte little-endian;
+//                 memcpy of the equivalent C types (u?int64_t, double)
+// 
+// len-prefix := size (message | string | bytes | packed);
+//                 size encoded as int32 varint
+// string     := valid UTF-8 string (e.g. ASCII);
+//                 max 2GB of bytes
+// bytes      := any sequence of 8-bit bytes;
+//                 max 2GB of bytes
+// packed     := varint* | i32* | i64*,
+//                 consecutive values of the type specified in `.proto`
+
+import "base:intrinsics"
 import "core:encoding/varint"
 import "core:fmt"
 import "core:math/bits"
@@ -37,36 +66,27 @@ Message :: struct {
 	fields: map[u32]Field,
 }
 
-decode_varint :: proc(buffer: []u8, index: ^int) -> (u128, bool) {
+decode_varint :: proc($T: typeid, buffer: []u8, index: ^int) -> (T,	bool) {
 	value, size, error := varint.decode_uleb128(buffer[index^:])
 	index^ += size
-	return value, error == .None
+	// TODO: handle the signed case
+	return T(value), error == .None
 }
 
-decode_i32 :: proc(buffer: []u8, index: ^int) -> (i32, bool) {
-	if index^ + size_of(i32le) >= len(buffer) {
+decode_fixed :: proc($T: typeid, buffer: []u8, index: ^int) -> (T, bool) {
+	if index^ + size_of(T) >= len(buffer) {
 		return 0, false
 	}
 
-	value_le := (^i32le)(&buffer[index^])^
-	index^ += size_of(i32le)
+	// TODO: handle endianness
+	value := (^T)(&buffer[index^])^
+	index^ += size_of(T)
 
-	return i32(value_le), true
-}
-
-decode_i64 :: proc(buffer: []u8, index: ^int) -> (i64, bool) {
-	if index^ + size_of(i64le) >= len(buffer) {
-		return 0, false
-	}
-
-	value_le := (^i64le)(&buffer[index^])^
-	index^ += size_of(i64le)
-
-	return i64(value_le), true
+	return value, true
 }
 
 decode_tag :: proc(buffer: []u8, index: ^int) -> (tag: Tag, ok: bool) {
-	value := decode_varint(buffer, index) or_return
+	value := decode_varint(u32, buffer, index) or_return
 	ok = true
 
 	tag.type = Type(bits.bitfield_extract(value, 0, 3))
@@ -78,16 +98,16 @@ decode_tag :: proc(buffer: []u8, index: ^int) -> (tag: Tag, ok: bool) {
 decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok: bool) {
 	switch type {
 		case .VARINT:
-			value = decode_varint(buffer, index) or_return
+			value = decode_varint(u128, buffer, index) or_return
 			ok = true
 		case .I32:
-			value = decode_i32(buffer, index) or_return
+			value = decode_fixed(i32, buffer, index) or_return
 			ok = true
 		case .I64:
-			value = decode_i64(buffer, index) or_return
+			value = decode_fixed(i64, buffer, index) or_return
 			ok = true
 		case .LEN:
-			len := int(decode_varint(buffer, index) or_return)
+			len := decode_varint(int, buffer, index) or_return
 			value = make([dynamic]u8, len)
 			copy(value.([dynamic]u8)[:], buffer[index^:index^ + len])
 			index^ += len
