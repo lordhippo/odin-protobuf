@@ -51,7 +51,7 @@ Tag :: struct {
 }
 
 Value :: union {
-	u128, // VARINT
+	u64, // VARINT
 	i32, // I32
 	i64, // I64
 	[dynamic]u8, // LEN
@@ -69,7 +69,6 @@ Message :: struct {
 decode_varint :: proc($T: typeid, buffer: []u8, index: ^int) -> (T,	bool) {
 	value, size, error := varint.decode_uleb128(buffer[index^:])
 	index^ += size
-	// TODO: handle the signed case
 	return T(value), error == .None
 }
 
@@ -98,7 +97,7 @@ decode_tag :: proc(buffer: []u8, index: ^int) -> (tag: Tag, ok: bool) {
 decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok: bool) {
 	switch type {
 		case .VARINT:
-			value = decode_varint(u128, buffer, index) or_return
+			value = decode_varint(u64, buffer, index) or_return
 			ok = true
 		case .I32:
 			value = decode_fixed(i32, buffer, index) or_return
