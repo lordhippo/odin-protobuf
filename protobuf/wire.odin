@@ -50,11 +50,16 @@ Tag :: struct {
 	field_number: u32,
 }
 
+Value_VARINT :: distinct u64
+Value_I32 :: distinct i32
+Value_I64 :: distinct i64
+Value_LEN :: distinct []u8
+
 Value :: union {
-	u64, // VARINT
-	i32, // I32
-	i64, // I64
-	[dynamic]u8, // LEN
+	Value_VARINT, // VARINT
+	Value_I32, // I32
+	Value_I64, // I64
+	Value_LEN, // LEN
 }
 
 Field :: struct {
@@ -97,18 +102,18 @@ decode_tag :: proc(buffer: []u8, index: ^int) -> (tag: Tag, ok: bool) {
 decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok: bool) {
 	switch type {
 		case .VARINT:
-			value = decode_varint(u64, buffer, index) or_return
+			value = decode_varint(Value_VARINT, buffer, index) or_return
 			ok = true
 		case .I32:
-			value = decode_fixed(i32, buffer, index) or_return
+			value = decode_fixed(Value_I32, buffer, index) or_return
 			ok = true
 		case .I64:
-			value = decode_fixed(i64, buffer, index) or_return
+			value = decode_fixed(Value_I64, buffer, index) or_return
 			ok = true
 		case .LEN:
 			len := decode_varint(int, buffer, index) or_return
-			value = make([dynamic]u8, len)
-			copy(value.([dynamic]u8)[:], buffer[index^:index^ + len])
+			value = make(Value_LEN, len)
+			copy(([]u8)(value.(Value_LEN)), buffer[index^:index^ + len])
 			index^ += len
 			ok = true
 		case .SGROUP, .EGROUP:
@@ -172,20 +177,16 @@ encode_tag :: proc(tag: Tag, buffer: ^[dynamic]u8) -> bool {
 
 encode_value :: proc(value: Value, buffer: ^[dynamic]u8) -> bool {
 	switch v in value {
-		case u64:
-			// VARINT
+		case Value_VARINT:
 			encode_varint(v, buffer) or_return
-		case i32:
-			// I32
+		case Value_I32:
 			encode_fixed(v, buffer) or_return
-		case i64:
-			// I64
+		case Value_I64:
 			encode_fixed(v, buffer) or_return
-		case [dynamic]u8:
-			// LEN
+		case Value_LEN:
 			encode_varint(u32(len(v)), buffer) or_return
 			non_zero_resize(buffer, len(buffer) + len(v))
-			copy(buffer[len(buffer) - len(v):], v[:])
+			copy(buffer[len(buffer) - len(v):], ([]u8)(v))
 	}
 	return true
 }
