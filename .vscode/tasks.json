@@ -1,0 +1,123 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+    },
+    "problemMatcher": {
+        "owner": "odin",
+        "source": "Odin",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(.*?)(\\((\\d+):(\\d+)\\))\\s+(Syntax\\s+)?(Error|Warning):\\s+(.+)$",
+          "file": 1,
+          "line": 3,
+          "column": 4,
+          "severity": 6,
+          "message": 7
+        }
+    },
+    "tasks": [
+        {
+            "label": "Create build directory - Debug",
+            "type": "shell",
+            "linux": {
+                "command": "mkdir -p ./out/debug"
+            },
+            "windows": {
+                "command": "cmd",
+                "args": ["/C", "if not exist .\\out\\debug mkdir .\\out\\debug"]
+            },
+        },
+        {
+            "label": "Create build directory - Release",
+            "type": "shell",
+            "linux": {
+                "command": "mkdir -p ./out/release"
+            },
+            "windows": {
+                "command": "cmd",
+                "args": ["/C", "if not exist .\\out\\release mkdir .\\out\\release"]
+            }
+        },
+        {
+            "label": "Build - Debug",
+            "group": "build",
+            "dependsOn": "Create build directory - Debug",
+            "type": "process",
+            "command": "odin",
+            "args": [
+                "build",
+                "${fileDirname}",
+                "-debug",
+                "-vet",
+                "-strict-style",
+                "-show-timings"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}\\out\\debug"
+            }
+        },
+        {
+            "label": "Build - Release",
+            "group": "build",
+            "dependsOn": "Create build directory - Release",
+            "type": "process",
+            "command": "odin",
+            "args": [
+                "build",
+                "${fileDirname}",
+                "-vet",
+                "-strict-style",
+                "-show-timings"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}\\out\\release"
+            }
+        },
+        {
+            "label": "Check",
+            "group": "build",
+            "type": "process",
+            "command": "odin",
+            "args": [
+                "check",
+                "${fileDirname}",
+                "-vet",
+                "-strict-style",
+                "-no-entry-point"
+            ]
+        },
+        {
+            "label": "Clean",
+            "group": "build",
+            "type": "shell",
+            "linux":{
+                "command": "rm",
+                "args": [
+                    "-rf",
+                    "${workspaceFolder}/out",
+                ]
+            },
+            "windows": {
+                "command": "Remove-item",
+                "args": [
+                    "${workspaceFolder}\\out",
+                    "-recurse",
+                ]
+            }
+        },
+        {
+            "label": "Profile Memory",
+            "group": "test",
+            "type": "process",
+            "dependsOn": "Build - Debug",
+            "command": "MTuner.exe",
+            "args": [
+                "${workspaceRoot}/out/debug/${fileDirnameBasename}.exe"
+            ]
+        },
+    ]
+}
