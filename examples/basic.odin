@@ -18,9 +18,9 @@ main :: proc() {
 	}
 	if message, decode_ok := wire.decode(buffer); decode_ok {
 		message_struct: Example_Message = {
-			unsigned_number = wire.cast_uint32(message.fields[1].value.(wire.Value_VARINT)),
-			str_text = wire.cast_string(message.fields[2].value.(wire.Value_LEN)),
-			signed_number = wire.cast_int32(message.fields[3].value.(wire.Value_VARINT)),
+			unsigned_number = wire.cast_uint32(message.fields[1].values[0].(wire.Value_VARINT)),
+			str_text = wire.cast_string(message.fields[2].values[0].(wire.Value_LEN)),
+			signed_number = wire.cast_int32(message.fields[3].values[0].(wire.Value_VARINT)),
 		}
 
 		fmt.printf("Decoded message: %#v\n", message_struct)

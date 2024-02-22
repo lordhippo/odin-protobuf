@@ -32,8 +32,13 @@ Value :: union {
 }
 
 Field :: struct {
-	tag:   Tag,
-	value: Value,
+	tag:    Tag,
+	// - non-repeated fields:
+	//     - scalar types: last one wins
+	//     - string / byte[]: concatenate
+	//     - message: merge (concatenate at this level)
+	// - repeated fields: array
+	values: [dynamic]Value,
 }
 
 Message :: struct {
@@ -110,12 +115,17 @@ decode :: proc(buffer: []u8) -> (message: Message, ok: bool) {
 
 	for index := 0; index < len(buffer); {
 		tag := decode_tag(buffer, &index) or_return
+		value := decode_value(buffer, tag.type, &index) or_return
 
-		// TODO: merge fields
-		message.fields[tag.field_number] = {
-			tag   = tag,
-			value = decode_value(buffer, tag.type, &index) or_return,
+		if tag.field_number not_in message.fields {
+			message.fields[tag.field_number] = {
+				tag    = tag,
+				values = make([dynamic]Value),
+			}
 		}
+
+		field := &message.fields[tag.field_number]
+		append(&field.values, value)
 	}
 
 	return message, true
@@ -181,8 +191,10 @@ encode :: proc(message: Message) -> (buffer: [dynamic]u8, ok: bool) {
 	buffer = make([dynamic]u8)
 
 	for _, field in message.fields {
-		encode_tag(field.tag, &buffer) or_return
-		encode_value(field.value, &buffer) or_return
+		for value in field.values {
+			encode_tag(field.tag, &buffer) or_return
+			encode_value(value, &buffer) or_return
+		}
 	}
 
 	return buffer, true
