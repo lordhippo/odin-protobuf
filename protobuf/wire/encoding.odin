@@ -1,35 +1,4 @@
-package protobuf
-
-// This is an implementation of the protobuf wire format
-// https://protobuf.dev/programming-guides/encoding/
-
-// message    := (tag value)*
-// 
-// tag        := (field << 3) bit-or wire_type;
-//                 encoded as uint32 varint
-// value      := varint      for wire_type == VARINT,
-//               i32         for wire_type == I32,
-//               i64         for wire_type == I64,
-//               len-prefix  for wire_type == LEN,
-//               <empty>     for wire_type == SGROUP or EGROUP
-// 
-// varint     := int32 | int64 | uint32 | uint64 | bool | enum | sint32 | sint64;
-//                 encoded as varints (sintN are ZigZag-encoded first)
-// i32        := sfixed32 | fixed32 | float;
-//                 encoded as 4-byte little-endian;
-//                 memcpy of the equivalent C types (u?int32_t, float)
-// i64        := sfixed64 | fixed64 | double;
-//                 encoded as 8-byte little-endian;
-//                 memcpy of the equivalent C types (u?int64_t, double)
-// 
-// len-prefix := size (message | string | bytes | packed);
-//                 size encoded as int32 varint
-// string     := valid UTF-8 string (e.g. ASCII);
-//                 max 2GB of bytes
-// bytes      := any sequence of 8-bit bytes;
-//                 max 2GB of bytes
-// packed     := varint* | i32* | i64*,
-//                 consecutive values of the type specified in `.proto`
+package protobuf_wire
 
 import "base:intrinsics"
 import "core:encoding/varint"
@@ -71,13 +40,23 @@ Message :: struct {
 	fields: map[u32]Field,
 }
 
-decode_varint :: proc($T: typeid, buffer: []u8, index: ^int) -> (T, bool) {
+@(private = "file")
+decode_varint :: proc(buffer: []u8, index: ^int) -> (Value_VARINT, bool) {
 	value, size, error := varint.decode_uleb128(buffer[index^:])
 	index^ += size
-	return T(value), error == .None
+	return Value_VARINT(value), error == .None
 }
 
-decode_fixed :: proc($T: typeid, buffer: []u8, index: ^int) -> (T, bool) {
+@(private = "file")
+decode_fixed :: proc(
+	$T: typeid,
+	buffer: []u8,
+	index: ^int,
+) -> (
+	T,
+	bool,
+) where T == Value_I32 ||
+	T == Value_I64 {
 	if index^ + size_of(T) >= len(buffer) {
 		return 0, false
 	}
@@ -89,20 +68,22 @@ decode_fixed :: proc($T: typeid, buffer: []u8, index: ^int) -> (T, bool) {
 	return value, true
 }
 
+@(private = "file")
 decode_tag :: proc(buffer: []u8, index: ^int) -> (tag: Tag, ok: bool) {
-	value := decode_varint(u32, buffer, index) or_return
-	ok = true
+	value_varint := decode_varint(buffer, index) or_return
+	value := cast_uint32(value_varint)
 
 	tag.type = Type(bits.bitfield_extract(value, 0, 3))
 	tag.field_number = u32(bits.bitfield_extract(value, 3, 29))
 
-	return tag, ok
+	return tag, true
 }
 
+@(private = "file")
 decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok: bool) {
 	switch type {
 		case .VARINT:
-			value = decode_varint(Value_VARINT, buffer, index) or_return
+			value = decode_varint(buffer, index) or_return
 			ok = true
 		case .I32:
 			value = decode_fixed(Value_I32, buffer, index) or_return
@@ -111,7 +92,8 @@ decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok
 			value = decode_fixed(Value_I64, buffer, index) or_return
 			ok = true
 		case .LEN:
-			len := decode_varint(int, buffer, index) or_return
+			len_varint := decode_varint(buffer, index) or_return
+			len := int(cast_int32(len_varint))
 			value = make(Value_LEN, len)
 			copy(([]u8)(value.(Value_LEN)), buffer[index^:index^ + len])
 			index^ += len
@@ -139,6 +121,7 @@ decode :: proc(buffer: []u8) -> (message: Message, ok: bool) {
 	return message, true
 }
 
+@(private = "file")
 encode_varint :: proc(value: $T, buffer: ^[dynamic]u8) -> bool {
 	current_len := len(buffer)
 	reserved_len := current_len + varint.LEB128_MAX_BYTES
@@ -157,6 +140,7 @@ encode_varint :: proc(value: $T, buffer: ^[dynamic]u8) -> bool {
 	}
 }
 
+@(private = "file")
 encode_fixed :: proc(value: $T, buffer: ^[dynamic]u8) -> bool {
 	if error := non_zero_resize(buffer, len(buffer) + size_of(T)); error == .None {
 		value_ref: ^T = transmute(^T)&buffer[len(buffer) - size_of(T)]
@@ -167,6 +151,7 @@ encode_fixed :: proc(value: $T, buffer: ^[dynamic]u8) -> bool {
 	}
 }
 
+@(private = "file")
 encode_tag :: proc(tag: Tag, buffer: ^[dynamic]u8) -> bool {
 	tag_value: u32
 	tag_value = bits.bitfield_insert(tag_value, u32(tag.type), 0, 3)
@@ -175,6 +160,7 @@ encode_tag :: proc(tag: Tag, buffer: ^[dynamic]u8) -> bool {
 	return encode_varint(tag_value, buffer)
 }
 
+@(private = "file")
 encode_value :: proc(value: Value, buffer: ^[dynamic]u8) -> bool {
 	switch v in value {
 		case Value_VARINT:
