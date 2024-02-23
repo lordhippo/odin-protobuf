@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:reflect"
 import "core:strconv"
 
+import "builtins"
 import "wire"
 
 decode :: proc($T: typeid, buffer: []u8) -> (decoded: T, ok: bool) {
@@ -19,7 +20,7 @@ decode :: proc($T: typeid, buffer: []u8) -> (decoded: T, ok: bool) {
 
 		tag_type_str := reflect.struct_tag_lookup(field_tag, "type") or_return
 		tag_type_int := strconv.parse_uint(tag_type_str) or_return
-		tag_type := wire.Builtin_Types(tag_type_int)
+		tag_type := builtins.Types(tag_type_int)
 
 		fmt.printf(
 			"field %v | id: %v | type: %v\n",
@@ -37,72 +38,72 @@ decode :: proc($T: typeid, buffer: []u8) -> (decoded: T, ok: bool) {
 		switch tag_type {
 			// VARINT-backing
 			case .t_int32:
-				(transmute(^i32)field_ptr)^ = wire.cast_int32(
+				(transmute(^i32)field_ptr)^ = builtins.decode_int32(
 					last_value.(wire.Value_VARINT),
 				)
 			case .t_int64:
-				(transmute(^i64)field_ptr)^ = wire.cast_int64(
+				(transmute(^i64)field_ptr)^ = builtins.decode_int64(
 					last_value.(wire.Value_VARINT),
 				)
 			case .t_uint32:
-				(transmute(^u32)field_ptr)^ = wire.cast_uint32(
+				(transmute(^u32)field_ptr)^ = builtins.decode_uint32(
 					last_value.(wire.Value_VARINT),
 				)
 			case .t_uint64:
-				(transmute(^u64)field_ptr)^ = wire.cast_uint64(
+				(transmute(^u64)field_ptr)^ = builtins.decode_uint64(
 					last_value.(wire.Value_VARINT),
 				)
 			case .t_bool:
-				(transmute(^bool)field_ptr)^ = wire.cast_bool(
+				(transmute(^bool)field_ptr)^ = builtins.decode_bool(
 					last_value.(wire.Value_VARINT),
 				)
 			case .t_enum:
-				(transmute(^i32)field_ptr)^ = wire.cast_enum(
+				(transmute(^i32)field_ptr)^ = builtins.decode_enum(
 					last_value.(wire.Value_VARINT),
 				)
 			case .t_sint32:
-				(transmute(^i32)field_ptr)^ = wire.cast_sint32(
+				(transmute(^i32)field_ptr)^ = builtins.decode_sint32(
 					last_value.(wire.Value_VARINT),
 				)
 			case .t_sint64:
-				(transmute(^i64)field_ptr)^ = wire.cast_sint64(
+				(transmute(^i64)field_ptr)^ = builtins.decode_sint64(
 					last_value.(wire.Value_VARINT),
 				)
 			// I32-backing
 			case .t_sfixed32:
-				(transmute(^i32)field_ptr)^ = wire.cast_sfixed32(
+				(transmute(^i32)field_ptr)^ = builtins.decode_sfixed32(
 					last_value.(wire.Value_I32),
 				)
 			case .t_fixed32:
-				(transmute(^u32)field_ptr)^ = wire.cast_fixed32(
+				(transmute(^u32)field_ptr)^ = builtins.decode_fixed32(
 					last_value.(wire.Value_I32),
 				)
 			case .t_float:
-				(transmute(^f32)field_ptr)^ = wire.cast_float(
+				(transmute(^f32)field_ptr)^ = builtins.decode_float(
 					last_value.(wire.Value_I32),
 				)
 			// I64-backing
 			case .t_sfixed64:
-				(transmute(^i64)field_ptr)^ = wire.cast_sfixed64(
+				(transmute(^i64)field_ptr)^ = builtins.decode_sfixed64(
 					last_value.(wire.Value_I64),
 				)
 			case .t_fixed64:
-				(transmute(^u64)field_ptr)^ = wire.cast_fixed64(
+				(transmute(^u64)field_ptr)^ = builtins.decode_fixed64(
 					last_value.(wire.Value_I64),
 				)
 			case .t_double:
-				(transmute(^f64)field_ptr)^ = wire.cast_double(
+				(transmute(^f64)field_ptr)^ = builtins.decode_double(
 					last_value.(wire.Value_I64),
 				)
 			// LEN-backing
 			case .t_message:
 				unimplemented()
 			case .t_string:
-				(transmute(^string)field_ptr)^ = wire.cast_string(
+				(transmute(^string)field_ptr)^ = builtins.decode_string(
 					last_value.(wire.Value_LEN),
 				)
 			case .t_bytes:
-				(transmute(^([]u8))field_ptr)^ = wire.cast_bytes(
+				(transmute(^([]u8))field_ptr)^ = builtins.decode_bytes(
 					last_value.(wire.Value_LEN),
 				)
 			case .t_packed:

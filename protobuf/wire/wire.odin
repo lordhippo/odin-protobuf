@@ -76,7 +76,7 @@ decode_fixed :: proc(
 @(private = "file")
 decode_tag :: proc(buffer: []u8, index: ^int) -> (tag: Tag, ok: bool) {
 	value_varint := decode_varint(buffer, index) or_return
-	value := cast_uint32(value_varint)
+	value := u32(value_varint)
 
 	tag.type = Type(bits.bitfield_extract(value, 0, 3))
 	tag.field_number = u32(bits.bitfield_extract(value, 3, 29))
@@ -98,7 +98,7 @@ decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok
 			ok = true
 		case .LEN:
 			len_varint := decode_varint(buffer, index) or_return
-			len := int(cast_int32(len_varint))
+			len := int(len_varint)
 			value = make(Value_LEN, len)
 			copy(([]u8)(value.(Value_LEN)), buffer[index^:index^ + len])
 			index^ += len
