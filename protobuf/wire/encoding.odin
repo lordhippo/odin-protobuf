@@ -70,5 +70,5 @@ encode :: proc(message: Message) -> (buffer: []u8, ok: bool) {
 		}
 	}
 
-	return buffer[:], true
+	return buffer_dyn[:], true
 }
