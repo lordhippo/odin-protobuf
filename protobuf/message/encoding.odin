@@ -29,91 +29,16 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 
 		wire_tag: wire.Tag = {
 			field_number = tag_id,
+			type         = builtins.wire_type(tag_type),
 		}
 		wire_values := make([dynamic]wire.Value, context.temp_allocator)
 
-		switch tag_type {
-			// VARINT-backing
-			case .t_int32:
-				append(&wire_values, builtins.encode_int32((transmute(^i32)field_ptr)^))
-				wire_tag.type = .VARINT
-			case .t_int64:
-				append(&wire_values, builtins.encode_int64((transmute(^i64)field_ptr)^))
-				wire_tag.type = .VARINT
-			case .t_uint32:
-				append(&wire_values, builtins.encode_uint32((transmute(^u32)field_ptr)^))
-				wire_tag.type = .VARINT
-			case .t_uint64:
-				append(&wire_values, builtins.encode_uint64((transmute(^u64)field_ptr)^))
-				wire_tag.type = .VARINT
-			case .t_bool:
-				append(&wire_values, builtins.encode_bool((transmute(^bool)field_ptr)^))
-				wire_tag.type = .VARINT
-			case .t_enum:
-				append(
-					&wire_values,
-					builtins.encode_enum((transmute(^wire.Enum_Wire_Type)field_ptr)^),
-				)
-				wire_tag.type = .VARINT
-			case .t_sint32:
-				append(&wire_values, builtins.encode_sint32((transmute(^i32)field_ptr)^))
-				wire_tag.type = .VARINT
-			case .t_sint64:
-				append(&wire_values, builtins.encode_sint64((transmute(^i64)field_ptr)^))
-				wire_tag.type = .VARINT
-			// I32-backing
-			case .t_sfixed32:
-				append(
-					&wire_values,
-					builtins.encode_sfixed32((transmute(^i32)field_ptr)^),
-				)
-				wire_tag.type = .I32
-			case .t_fixed32:
-				append(
-					&wire_values,
-					builtins.encode_fixed32((transmute(^u32)field_ptr)^),
-				)
-				wire_tag.type = .I32
-			case .t_float:
-				append(&wire_values, builtins.encode_float((transmute(^f32)field_ptr)^))
-				wire_tag.type = .I32
-			// I64-backing
-			case .t_sfixed64:
-				append(
-					&wire_values,
-					builtins.encode_sfixed64((transmute(^i64)field_ptr)^),
-				)
-				wire_tag.type = .I64
-			case .t_fixed64:
-				append(
-					&wire_values,
-					builtins.encode_fixed64((transmute(^u64)field_ptr)^),
-				)
-				wire_tag.type = .I64
-			case .t_double:
-				append(&wire_values, builtins.encode_double((transmute(^f64)field_ptr)^))
-				wire_tag.type = .I64
-			// LEN-backing
-			case .t_message:
-				field_encoded := encode({data = field_ptr, id = field_type.id}) or_return
-				append(&wire_values, builtins.encode_bytes(field_encoded))
-				wire_tag.type = .LEN
-			case .t_string:
-				append(
-					&wire_values,
-					builtins.encode_string((transmute(^string)field_ptr)^),
-				)
-				wire_tag.type = .LEN
-			case .t_bytes:
-				append(
-					&wire_values,
-					builtins.encode_bytes((transmute(^([]u8))field_ptr)^),
-				)
-				wire_tag.type = .LEN
-			case .t_packed:
-				wire_tag.type = .LEN
-				unimplemented()
-		}
+		wire_value := encode_field(
+			{data = field_ptr, id = field_type.id},
+			tag_type,
+		) or_return
+
+		append(&wire_values, wire_value)
 
 		wire_message.fields[tag_id] = {
 			tag    = wire_tag,
@@ -122,4 +47,60 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 	}
 
 	return wire.encode(wire_message)
+}
+
+encode_field :: proc(
+	field: any,
+	type: builtins.Type,
+) -> (
+	wire_value: wire.Value,
+	ok: bool,
+) {
+	switch type {
+		// VARINT-backing
+		case .t_int32:
+			wire_value = builtins.encode_int32((transmute(^i32)field.data)^)
+		case .t_int64:
+			wire_value = builtins.encode_int64((transmute(^i64)field.data)^)
+		case .t_uint32:
+			wire_value = builtins.encode_uint32((transmute(^u32)field.data)^)
+		case .t_uint64:
+			wire_value = builtins.encode_uint64((transmute(^u64)field.data)^)
+		case .t_bool:
+			wire_value = builtins.encode_bool((transmute(^bool)field.data)^)
+		case .t_enum:
+			wire_value = builtins.encode_enum(
+				(transmute(^wire.Enum_Wire_Type)field.data)^,
+			)
+		case .t_sint32:
+			wire_value = builtins.encode_sint32((transmute(^i32)field.data)^)
+		case .t_sint64:
+			wire_value = builtins.encode_sint64((transmute(^i64)field.data)^)
+		// I32-backing
+		case .t_sfixed32:
+			wire_value = builtins.encode_sfixed32((transmute(^i32)field.data)^)
+		case .t_fixed32:
+			wire_value = builtins.encode_fixed32((transmute(^u32)field.data)^)
+		case .t_float:
+			wire_value = builtins.encode_float((transmute(^f32)field.data)^)
+		// I64-backing
+		case .t_sfixed64:
+			wire_value = builtins.encode_sfixed64((transmute(^i64)field.data)^)
+		case .t_fixed64:
+			wire_value = builtins.encode_fixed64((transmute(^u64)field.data)^)
+		case .t_double:
+			wire_value = builtins.encode_double((transmute(^f64)field.data)^)
+		// LEN-backing
+		case .t_message:
+			field_encoded := encode({data = field.data, id = field.id}) or_return
+			wire_value = builtins.encode_bytes(field_encoded)
+		case .t_string:
+			wire_value = builtins.encode_string((transmute(^string)field.data)^)
+		case .t_bytes:
+			wire_value = builtins.encode_bytes((transmute(^([]u8))field.data)^)
+		case .t_packed:
+			unimplemented()
+	}
+
+	return wire_value, true
 }
