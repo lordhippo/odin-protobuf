@@ -6,11 +6,6 @@ import "core:strconv"
 
 import "wire"
 
-get_field_ptr :: proc($T: typeid, a: any, offset: uintptr) -> ^T {
-	raw_ptr := rawptr(uintptr(a.data) + offset)
-	return transmute(^T)raw_ptr
-}
-
 decode :: proc($T: typeid, buffer: []u8) -> (decoded: T, ok: bool) {
 	raw_message := wire.decode(buffer) or_return
 
