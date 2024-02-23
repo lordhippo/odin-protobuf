@@ -20,7 +20,7 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 
 		tag_type_str := reflect.struct_tag_lookup(field_tag, "type") or_return
 		tag_type_int := strconv.parse_uint(tag_type_str) or_return
-		tag_type := builtins.Types(tag_type_int)
+		tag_type := builtins.Type(tag_type_int)
 
 		field_offset := type_offsets[field_idx]
 		field_ptr := rawptr(uintptr(message.data) + field_offset)

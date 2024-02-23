@@ -4,7 +4,7 @@ package protobuf_builtins
 // the builtin_type is important for encoding and decoding, as for example wire_type of VARINT 
 // can be decoded to signed integers in multiple ways: 2's complement (intN) vs zig-zag (sintN)
 
-Types :: enum uint {
+Type :: enum uint {
 	// VARINT-backing
 	t_int32    = 1,
 	t_int64    = 2,
