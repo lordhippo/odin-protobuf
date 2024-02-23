@@ -1,5 +1,6 @@
 package protobuf_message
 
+import "base:runtime"
 import "core:reflect"
 import "core:strconv"
 
@@ -33,12 +34,36 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 		}
 		wire_values := make([dynamic]wire.Value, context.temp_allocator)
 
-		wire_value := encode_field(
-			{data = field_ptr, id = field_type.id},
-			tag_type,
-		) or_return
+		base_ptr: uintptr
+		elem_size: uintptr
+		elem_count: uintptr = 1
+		elem_typeid: typeid
 
-		append(&wire_values, wire_value)
+		if variant, v_ok := field_type.variant.(runtime.Type_Info_Slice); v_ok {
+			slice := (transmute(^runtime.Raw_Slice)(field_ptr))
+
+			base_ptr = uintptr(slice.data)
+			elem_size = uintptr(variant.elem.size)
+			elem_count = uintptr(slice.len)
+
+			elem_typeid = variant.elem.id
+		} else {
+			base_ptr = uintptr(field_ptr)
+			elem_typeid = field_type.id
+		}
+
+		// avoid multiple reallocs
+		reserve_dynamic_array(&wire_values, int(elem_count))
+
+		for elem_idx in 0 ..< elem_count {
+			current_ptr := rawptr(base_ptr + elem_idx * elem_size)
+			wire_value := encode_field(
+				{data = current_ptr, id = elem_typeid},
+				tag_type,
+			) or_return
+
+			append(&wire_values, wire_value)
+		}
 
 		wire_message.fields[tag_id] = {
 			tag    = wire_tag,

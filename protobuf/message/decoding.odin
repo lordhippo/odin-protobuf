@@ -58,6 +58,7 @@ decode_fill :: proc(message: any, buffer: []u8) -> (ok: bool) {
 
 		base_ptr: uintptr
 		elem_stride: uintptr
+		elem_typeid: typeid
 
 		if variant, v_ok := field_type.variant.(runtime.Type_Info_Slice); v_ok {
 			slice := new_slice(variant, len(values)) or_return
@@ -65,15 +66,17 @@ decode_fill :: proc(message: any, buffer: []u8) -> (ok: bool) {
 
 			base_ptr = uintptr(slice.data)
 			elem_stride = uintptr(variant.elem.size)
+			elem_typeid = variant.elem.id
 		} else {
 			base_ptr = uintptr(field_ptr)
+			elem_typeid = field_type.id
 		}
 
 		for value, value_idx in values {
 			current_ptr := rawptr(base_ptr + uintptr(value_idx) * elem_stride)
 
 			decode_fill_field(
-				{data = current_ptr, id = field_type.id},
+				{data = current_ptr, id = elem_typeid},
 				value,
 				tag_type,
 			) or_return

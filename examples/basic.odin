@@ -13,6 +13,7 @@ Example_Message :: struct {
 	number: i32 `id:"1" type:"1"`,
 	text:   string `id:"2" type:"16"`,
 	inner:  Inner_Message `id:"3" type:"15"`,
+	arr:    []i32 `id:"4" type:"1"`,
 }
 
 main :: proc() {
@@ -21,6 +22,7 @@ main :: proc() {
 			number = -2,
 			text = "testing",
 			inner = {number = 3.1415, text = "hippo"},
+			arr = {4, 3},
 		}
 
 		if encoded_buffer, encode_ok := protobuf.encode(message); encode_ok {
