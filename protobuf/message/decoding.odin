@@ -7,20 +7,30 @@ import "core:strconv"
 import "../builtins"
 import "../wire"
 
-new_id :: proc(id: typeid) -> (rawptr, bool) {
+new_id :: proc(id: typeid) -> (any, bool) {
 	size := reflect.size_of_typeid(id)
 	align := reflect.align_of_typeid(id)
 
 	ptr, alloc_error := runtime.mem_alloc_bytes(size, align)
-	return raw_data(ptr), alloc_error == .None
+	return {data = raw_data(ptr), id = id}, alloc_error == .None
+}
+
+new_slice :: proc(
+	slice_info: runtime.Type_Info_Slice,
+	count: int,
+) -> (
+	runtime.Raw_Slice,
+	bool,
+) {
+	elem_size := slice_info.elem.size
+	elem_align := slice_info.elem.align
+
+	ptr, alloc_error := runtime.mem_alloc_bytes(elem_size * count, elem_align)
+	return {data = raw_data(ptr), len = count}, alloc_error == .None
 }
 
 decode :: proc(message_tid: typeid, buffer: []u8) -> (message: any, ok: bool) {
-	message = {
-		data = (new_id(message_tid) or_return),
-		id   = message_tid,
-	}
-
+	message = new_id(message_tid) or_return
 	return message, decode_fill(message, buffer)
 }
 
@@ -42,12 +52,28 @@ decode_fill :: proc(message: any, buffer: []u8) -> (ok: bool) {
 		field_offset := type_offsets[field_idx]
 		field_ptr := rawptr(uintptr(message.data) + field_offset)
 
+		values := wire_message.fields[tag_id].values
+
 		field_type := type_types[field_idx]
 
-		for value in wire_message.fields[tag_id].values {
-			// TODO: in case of array fields, append instead
+		base_ptr: uintptr
+		elem_stride: uintptr
+
+		if variant, v_ok := field_type.variant.(runtime.Type_Info_Slice); v_ok {
+			slice := new_slice(variant, len(values)) or_return
+			(transmute(^runtime.Raw_Slice)(field_ptr))^ = slice
+
+			base_ptr = uintptr(slice.data)
+			elem_stride = uintptr(variant.elem.size)
+		} else {
+			base_ptr = uintptr(field_ptr)
+		}
+
+		for value, value_idx in values {
+			current_ptr := rawptr(base_ptr + uintptr(value_idx) * elem_stride)
+
 			decode_fill_field(
-				{data = field_ptr, id = field_type.id},
+				{data = current_ptr, id = field_type.id},
 				value,
 				tag_type,
 			) or_return
