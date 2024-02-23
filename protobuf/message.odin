@@ -16,7 +16,6 @@ decode :: proc($T: typeid, buffer: []u8) -> (decoded: T, ok: bool) {
 
 	type_names := reflect.struct_field_names(T)
 	type_offsets := reflect.struct_field_offsets(T)
-	//type_types := reflect.struct_field_types(T)
 	type_tags := reflect.struct_field_tags(T)
 
 	for field_tag, field_idx in type_tags {
