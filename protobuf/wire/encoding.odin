@@ -60,15 +60,15 @@ encode_value :: proc(value: Value, buffer: ^[dynamic]u8) -> bool {
 	return true
 }
 
-encode :: proc(message: Message) -> (buffer: [dynamic]u8, ok: bool) {
-	buffer = make([dynamic]u8)
+encode :: proc(message: Message) -> (buffer: []u8, ok: bool) {
+	buffer_dyn := make([dynamic]u8)
 
 	for _, field in message.fields {
 		for value in field.values {
-			encode_tag(field.tag, &buffer) or_return
-			encode_value(value, &buffer) or_return
+			encode_tag(field.tag, &buffer_dyn) or_return
+			encode_value(value, &buffer_dyn) or_return
 		}
 	}
 
-	return buffer, true
+	return buffer[:], true
 }
