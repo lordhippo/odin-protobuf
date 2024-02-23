@@ -2,8 +2,6 @@ package protobuf_builtins
 
 import "../wire"
 
-import "base:intrinsics"
-
 // VARINT-backing
 
 decode_int32 :: proc(value: wire.Value_VARINT) -> i32 {

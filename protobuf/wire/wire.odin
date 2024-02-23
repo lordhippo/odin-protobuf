@@ -1,6 +1,5 @@
 package protobuf_wire
 
-import "base:intrinsics"
 import "core:encoding/varint"
 import "core:fmt"
 import "core:math/bits"
