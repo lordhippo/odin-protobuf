@@ -1,6 +1,6 @@
 package examples
 
-import "../protobuf"
+import protobuf "../protobuf/message"
 
 import "core:fmt"
 
