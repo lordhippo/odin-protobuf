@@ -1,13 +1,13 @@
 package examples
 
-import "../protobuf/wire"
+import "../protobuf"
 
 import "core:fmt"
 
 Example_Message :: struct {
-	unsigned_number: u32,
-	str_text: string,
-	signed_number: i32,
+	unsigned_number: u32 `id:"1" type:"3"`,
+	str_text:        string `id:"2" type:"16"`,
+	signed_number:   i32 `id:"3" type:"1"`,
 }
 
 main :: proc() {
@@ -16,16 +16,11 @@ main :: proc() {
 		0x18, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01,
 		0x12, 0x07, 0x74, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x67,
 	}
-	if message, decode_ok := wire.decode(buffer); decode_ok {
-		message_struct: Example_Message = {
-			unsigned_number = wire.cast_uint32(message.fields[1].values[0].(wire.Value_VARINT)),
-			str_text = wire.cast_string(message.fields[2].values[0].(wire.Value_LEN)),
-			signed_number = wire.cast_int32(message.fields[3].values[0].(wire.Value_VARINT)),
-		}
 
-		fmt.printf("Decoded message: %#v\n", message_struct)
+	if message, ok := protobuf.decode(Example_Message, buffer); ok {
+		fmt.printf("Decoded message: %#v\n", message)
 
-		if encoded_buffer, encode_ok := wire.encode(message); encode_ok {
+		if encoded_buffer, encode_ok := protobuf.encode(message); encode_ok {
 			fmt.printf("Encoded message: %x\n", encoded_buffer)
 		} else {
 			fmt.eprintf("Failed to encode message\n")

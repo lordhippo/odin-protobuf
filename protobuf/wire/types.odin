@@ -6,6 +6,31 @@ import "base:intrinsics"
 // the builtin_type is important for encoding and decoding, as for example wire_type of VARINT 
 // can be decoded to signed integers in multiple ways: 2's complement (intN) vs zig-zag (sintN)
 
+Builtin_Types :: enum uint {
+	// VARINT-backing
+	t_int32    = 1,
+	t_int64    = 2,
+	t_uint32   = 3,
+	t_uint64   = 4,
+	t_bool     = 5,
+	t_enum     = 6,
+	t_sint32   = 7,
+	t_sint64   = 8,
+	// I32-backing
+	t_sfixed32 = 9,
+	t_fixed32  = 10,
+	t_float    = 11,
+	// I64-backing
+	t_sfixed64 = 12,
+	t_fixed64  = 13,
+	t_double   = 14,
+	// LEN-backing
+	t_message  = 15,
+	t_string   = 16,
+	t_bytes    = 17,
+	t_packed   = 18,
+}
+
 // VARINT-backing
 
 cast_int32 :: proc(value: Value_VARINT) -> i32 {
@@ -35,14 +60,7 @@ cast_bool :: proc(value: Value_VARINT) -> bool {
 	return bool(value_i32)
 }
 
-cast_enum :: proc(
-	$T: typeid,
-	value: Value_VARINT,
-) -> T where intrinsics.type_is_enum(T) {
-	// Enums are encoded as if they were int32s
-	value_i32 := cast_int32(value)
-	return T(value_i32)
-}
+cast_enum :: cast_int32
 
 cast_sint32 :: proc(value: Value_VARINT) -> i32 {
 	abs_value := i32(value >> 1)
