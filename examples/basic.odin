@@ -4,18 +4,23 @@ import protobuf "../protobuf/message"
 
 import "core:fmt"
 
+Inner_Message :: struct {
+	number: f32 `id:"1" type:"3"`,
+	text:   string `id:"2" type:"16"`,
+}
+
 Example_Message :: struct {
-	unsigned_number: u32 `id:"1" type:"3"`,
-	str_text:        string `id:"2" type:"16"`,
-	signed_number:   i32 `id:"3" type:"1"`,
+	number: i32 `id:"1" type:"1"`,
+	text:   string `id:"2" type:"16"`,
+	inner:  Inner_Message `id:"3" type:"15"`,
 }
 
 main :: proc() {
 	{
 		message := Example_Message {
-			unsigned_number = 150,
-			str_text        = "testing",
-			signed_number   = -2,
+			number = -2,
+			text = "testing",
+			inner = {number = 3.1415, text = "hippo"},
 		}
 
 		if encoded_buffer, encode_ok := protobuf.encode(message); encode_ok {

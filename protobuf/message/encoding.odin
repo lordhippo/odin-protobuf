@@ -97,6 +97,7 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 			case .t_message:
 				field_encoded := encode({data = field_ptr, id = field_type.id}) or_return
 				append(&wire_values, builtins.encode_bytes(field_encoded))
+				wire_tag.type = .LEN
 			case .t_string:
 				append(
 					&wire_values,
@@ -110,6 +111,7 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 				)
 				wire_tag.type = .LEN
 			case .t_packed:
+				wire_tag.type = .LEN
 				unimplemented()
 		}
 

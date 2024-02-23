@@ -1,16 +1,35 @@
 package protobuf_message
 
+import "base:runtime"
 import "core:reflect"
 import "core:strconv"
 
 import "../builtins"
 import "../wire"
 
-decode :: proc($T: typeid, buffer: []u8) -> (decoded: T, ok: bool) {
+decode :: proc(message_tid: typeid, buffer: []u8) -> (message: any, ok: bool) {
+	message_size := reflect.size_of_typeid(message_tid)
+	message_align := reflect.align_of_typeid(message_tid)
+
+	message_ptr, alloc_error := runtime.mem_alloc_bytes(message_size, message_align)
+	if alloc_error != .None {
+		return message, false
+	}
+
+	message = {
+		data = raw_data(message_ptr),
+		id   = message_tid,
+	}
+
+	return message, decode_fill(message, buffer)
+}
+
+decode_fill :: proc(message: any, buffer: []u8) -> (ok: bool) {
 	wire_message := wire.decode(buffer) or_return
 
-	type_offsets := reflect.struct_field_offsets(T)
-	type_tags := reflect.struct_field_tags(T)
+	type_offsets := reflect.struct_field_offsets(message.id)
+	type_types := reflect.struct_field_types(message.id)
+	type_tags := reflect.struct_field_tags(message.id)
 
 	for field_tag, field_idx in type_tags {
 		tag_id_str := reflect.struct_tag_lookup(field_tag, "id") or_return
@@ -21,7 +40,9 @@ decode :: proc($T: typeid, buffer: []u8) -> (decoded: T, ok: bool) {
 		tag_type := builtins.Types(tag_type_int)
 
 		field_offset := type_offsets[field_idx]
-		field_ptr := rawptr(uintptr(&decoded) + field_offset)
+		field_ptr := rawptr(uintptr(message.data) + field_offset)
+
+		field_type := type_types[field_idx]
 
 		message_field := &wire_message.fields[tag_id]
 		last_value := message_field.values[len(message_field.values) - 1]
@@ -88,7 +109,11 @@ decode :: proc($T: typeid, buffer: []u8) -> (decoded: T, ok: bool) {
 				)
 			// LEN-backing
 			case .t_message:
-				unimplemented()
+				field_bytes := builtins.decode_bytes(last_value.(wire.Value_LEN))
+				decode_fill(
+					{data = field_ptr, id = field_type.id},
+					field_bytes,
+				) or_return
 			case .t_string:
 				(transmute(^string)field_ptr)^ = builtins.decode_string(
 					last_value.(wire.Value_LEN),
@@ -103,5 +128,5 @@ decode :: proc($T: typeid, buffer: []u8) -> (decoded: T, ok: bool) {
 
 	}
 
-	return decoded, true
+	return true
 }
