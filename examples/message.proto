@@ -17,7 +17,7 @@ message Example_Message {
 	int32 number = 1;
 	string text = 2;
 	Inner_Message inner = 3;
-	repeated int32 arr_num = 4;
+	repeated int32 arr_num = 4 [packed = false];
 	repeated string arr_text = 5;
 	repeated Inner_Message arr_inner = 6;
 	Example_Enum my_enum = 7;

@@ -1,12 +1,13 @@
 package examples
 
 import "../protobuf"
+import "proto/examples"
 
 import "core:fmt"
 
 main :: proc() {
 	{
-		message := Example_Message {
+		message := examples.Example_Message {
 			number = -2,
 			text = "testing",
 			inner = {number = 3.1415, text = "hippo"},
@@ -18,7 +19,7 @@ main :: proc() {
 
 		if encoded_buffer, encode_ok := protobuf.encode(message); encode_ok {
 			fmt.printf("Encoded message: %x\n", encoded_buffer)
-			if message, ok := protobuf.decode(Example_Message, encoded_buffer); ok {
+			if message, ok := protobuf.decode(examples.Example_Message, encoded_buffer); ok {
 				fmt.printf("Decoded message: %#v\n", message)
 			} else {
 				fmt.eprintf("Failed to decode message\n")
