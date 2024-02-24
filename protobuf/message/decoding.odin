@@ -137,7 +137,7 @@ decode_fill_field :: proc(field: any, value: wire.Value, type: builtins.Type) ->
 			(transmute(^([]u8))field.data)^ = builtins.decode_bytes(
 				value.(wire.Value_LEN),
 			)
-		case .t_packed:
+		case .t_group:
 			unimplemented()
 	}
 

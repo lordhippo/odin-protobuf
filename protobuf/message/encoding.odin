@@ -124,7 +124,7 @@ encode_field :: proc(
 			wire_value = builtins.encode_string((transmute(^string)field.data)^)
 		case .t_bytes:
 			wire_value = builtins.encode_bytes((transmute(^([]u8))field.data)^)
-		case .t_packed:
+		case .t_group:
 			unimplemented()
 	}
 
