@@ -8,6 +8,11 @@ import "core:math/bits"
 decode_varint :: proc(buffer: []u8, index: ^int) -> (Value_VARINT, bool) {
 	value, size, error := varint.decode_uleb128(buffer[index^:])
 	index^ += size
+
+	if error != .None {
+		fmt.eprintf("Failed to decode varint: %v\n", error)
+	}
+
 	return Value_VARINT(value), error == .None
 }
 
@@ -21,7 +26,8 @@ decode_fixed :: proc(
 	bool,
 ) where T == Value_I32 ||
 	T == Value_I64 {
-	if index^ + size_of(T) >= len(buffer) {
+	if index^ + size_of(T) > len(buffer) {
+		fmt.eprintf("Failed to decode fixed: buffer too small\n")
 		return 0, false
 	}
 
