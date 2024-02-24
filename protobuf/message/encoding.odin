@@ -74,6 +74,7 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 	return wire.encode(wire_message)
 }
 
+@(private = "file")
 encode_field :: proc(
 	field: any,
 	type: builtins.Type,

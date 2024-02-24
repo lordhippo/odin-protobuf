@@ -7,33 +7,12 @@ import "core:strconv"
 import "../builtins"
 import "../wire"
 
-new_id :: proc(id: typeid) -> (any, bool) {
-	size := reflect.size_of_typeid(id)
-	align := reflect.align_of_typeid(id)
-
-	ptr, alloc_error := runtime.mem_alloc_bytes(size, align)
-	return {data = raw_data(ptr), id = id}, alloc_error == .None
-}
-
-new_slice :: proc(
-	slice_info: runtime.Type_Info_Slice,
-	count: int,
-) -> (
-	runtime.Raw_Slice,
-	bool,
-) {
-	elem_size := slice_info.elem.size
-	elem_align := slice_info.elem.align
-
-	ptr, alloc_error := runtime.mem_alloc_bytes(elem_size * count, elem_align)
-	return {data = raw_data(ptr), len = count}, alloc_error == .None
-}
-
 decode :: proc(message_tid: typeid, buffer: []u8) -> (message: any, ok: bool) {
 	message = new_id(message_tid) or_return
 	return message, decode_fill(message, buffer)
 }
 
+@(private = "file")
 decode_fill :: proc(message: any, buffer: []u8) -> (ok: bool) {
 	wire_message := wire.decode(buffer) or_return
 
@@ -86,6 +65,7 @@ decode_fill :: proc(message: any, buffer: []u8) -> (ok: bool) {
 	return true
 }
 
+@(private = "file")
 decode_fill_field :: proc(field: any, value: wire.Value, type: builtins.Type) -> bool {
 	switch type {
 		// VARINT-backing
@@ -162,4 +142,28 @@ decode_fill_field :: proc(field: any, value: wire.Value, type: builtins.Type) ->
 	}
 
 	return true
+}
+
+@(private = "file")
+new_id :: proc(id: typeid) -> (any, bool) {
+	size := reflect.size_of_typeid(id)
+	align := reflect.align_of_typeid(id)
+
+	ptr, alloc_error := runtime.mem_alloc_bytes(size, align)
+	return {data = raw_data(ptr), id = id}, alloc_error == .None
+}
+
+@(private = "file")
+new_slice :: proc(
+	slice_info: runtime.Type_Info_Slice,
+	count: int,
+) -> (
+	runtime.Raw_Slice,
+	bool,
+) {
+	elem_size := slice_info.elem.size
+	elem_align := slice_info.elem.align
+
+	ptr, alloc_error := runtime.mem_alloc_bytes(elem_size * count, elem_align)
+	return {data = raw_data(ptr), len = count}, alloc_error == .None
 }
