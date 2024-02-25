@@ -52,6 +52,9 @@ decode_tag :: proc(buffer: []u8, index: ^int) -> (tag: Tag, ok: bool) {
 @(private = "file")
 decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok: bool) {
 	switch type {
+		case .None:
+			fmt.eprintf("can't decode value when no type is provided")
+			return value, false
 		case .VARINT:
 			value = decode_varint(buffer, index) or_return
 			ok = true
@@ -75,22 +78,54 @@ decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok
 	return value, ok
 }
 
+decode_packed :: proc(value: Value_LEN, elem_type: Type) -> (result: []Value, ok: bool) {
+	if elem_type != .VARINT && elem_type != .I32 && elem_type != .I64 {
+		fmt.eprintf(
+			"%v is not a valid type for packed field. packed fields should only contain primitive types\n",
+			elem_type,
+		)
+		return result, false
+	}
+
+	buffer := ([]u8)(value)
+	elems := make([dynamic]Value, context.temp_allocator)
+	for index := 0; index < len(value); {
+		elem := decode_value(buffer, elem_type, &index) or_return
+		append(&elems, elem)
+	}
+
+	return elems[:], true
+}
+
 decode :: proc(buffer: []u8) -> (message: Message, ok: bool) {
 	message.fields = make(map[u32]Field)
+
+	value_map := make_map(map[u32]([dynamic]Value), allocator = context.temp_allocator)
 
 	for index := 0; index < len(buffer); {
 		tag := decode_tag(buffer, &index) or_return
 		value := decode_value(buffer, tag.type, &index) or_return
 
-		if tag.field_number not_in message.fields {
+		if tag.field_number not_in value_map {
+			value_map[tag.field_number] = make(
+				[dynamic]Value,
+				allocator = context.temp_allocator,
+			)
+
 			message.fields[tag.field_number] = {
-				tag    = tag,
-				values = make([dynamic]Value),
+				tag = tag,
 			}
 		}
 
-		field := &message.fields[tag.field_number]
-		append(&field.values, value)
+		append_elem(&value_map[tag.field_number], value)
+	}
+
+	for id, value in value_map {
+		field := &message.fields[id]
+		field^ = Field {
+			tag    = field.tag,
+			values = value[:],
+		}
 	}
 
 	return message, true

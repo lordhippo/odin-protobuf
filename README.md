@@ -52,7 +52,6 @@ if message, ok := protobuf.decode(proto.SearchRequest, buffer); ok {
 ```
 
 ## Missing features
-- [Packed fields](https://github.com/lordhippo/odin-protobuf/issues/3)
 - [Merging](https://github.com/lordhippo/odin-protobuf/issues/8)
 - [LEN-type field concatenation](https://github.com/lordhippo/odin-protobuf/issues/2)
 - [Oneofs (unions)](https://github.com/lordhippo/odin-protobuf/issues/6)
