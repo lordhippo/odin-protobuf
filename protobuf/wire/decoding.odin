@@ -75,6 +75,28 @@ decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok
 	return value, ok
 }
 
+decode_packed :: proc(value: Value_LEN, elem_type: Type) -> (result: []Value, ok: bool) {
+	buffer := ([]u8)(value)
+	elems := make([dynamic]Value, context.temp_allocator)
+	for index := 0; index < len(value); {
+		elem: Value
+		#partial switch elem_type {
+			case .VARINT:
+				elem := decode_varint(buffer, &index) or_return
+			case .I32:
+				elem := decode_fixed(Value_I32, buffer, &index) or_return
+			case .I64:
+				elem := decode_fixed(Value_I64, buffer, &index) or_return
+			case:
+				assert(false, "packed fields should only contain primitive types")
+		}
+
+		append(&elems, elem)
+	}
+
+	return elems[:], true
+}
+
 decode :: proc(buffer: []u8) -> (message: Message, ok: bool) {
 	message.fields = make(map[u32]Field)
 

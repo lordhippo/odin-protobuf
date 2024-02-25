@@ -86,7 +86,3 @@ decode_string :: proc(value: wire.Value_LEN) -> string {
 decode_bytes :: proc(value: wire.Value_LEN) -> []u8 {
 	return ([]u8)(value)
 }
-
-decode_packed :: proc(value: wire.Value_LEN) -> []wire.Value {
-	unimplemented()
-}
