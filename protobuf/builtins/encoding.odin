@@ -85,7 +85,3 @@ encode_string :: proc(value: string) -> wire.Value_LEN {
 encode_bytes :: proc(value: []u8) -> wire.Value_LEN {
 	return wire.Value_LEN(value)
 }
-
-encode_packed :: proc(value: []wire.Value) -> wire.Value_LEN {
-	unimplemented()
-}

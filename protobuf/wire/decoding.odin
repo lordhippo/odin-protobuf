@@ -52,6 +52,9 @@ decode_tag :: proc(buffer: []u8, index: ^int) -> (tag: Tag, ok: bool) {
 @(private = "file")
 decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok: bool) {
 	switch type {
+		case .None:
+			fmt.eprintf("can't decode value when no type is provided")
+			return value, false
 		case .VARINT:
 			value = decode_varint(buffer, index) or_return
 			ok = true
@@ -76,21 +79,18 @@ decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok
 }
 
 decode_packed :: proc(value: Value_LEN, elem_type: Type) -> (result: []Value, ok: bool) {
+	if elem_type != .VARINT && elem_type != .I32 && elem_type != .I64 {
+		fmt.eprintf(
+			"%v is not a valid type for packed field. packed fields should only contain primitive types\n",
+			elem_type,
+		)
+		return result, false
+	}
+
 	buffer := ([]u8)(value)
 	elems := make([dynamic]Value, context.temp_allocator)
 	for index := 0; index < len(value); {
-		elem: Value
-		#partial switch elem_type {
-			case .VARINT:
-				elem := decode_varint(buffer, &index) or_return
-			case .I32:
-				elem := decode_fixed(Value_I32, buffer, &index) or_return
-			case .I64:
-				elem := decode_fixed(Value_I64, buffer, &index) or_return
-			case:
-				assert(false, "packed fields should only contain primitive types")
-		}
-
+		elem := decode_value(buffer, elem_type, &index) or_return
 		append(&elems, elem)
 	}
 
