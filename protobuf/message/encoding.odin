@@ -1,7 +1,5 @@
 package protobuf_message
 
-import "base:runtime"
-
 import "../builtins"
 import "../wire"
 
@@ -29,10 +27,10 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 
 		switch type_variant in field_info.type {
 			case Field_Type_Scalar:
-				base_ptr = uintptr(field_info.ptr)
+				base_ptr = uintptr(field_info.data.(Field_Data_Scalar))
 				elem_typeid = type_variant.type
 			case Field_Type_Repeated:
-				slice := (transmute(^runtime.Raw_Slice)(field_info.ptr))
+				slice := field_info.data.(Field_Data_Repeated)
 
 				base_ptr = uintptr(slice.data)
 				elem_count = uintptr(slice.len)

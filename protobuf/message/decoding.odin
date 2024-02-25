@@ -1,8 +1,5 @@
 package protobuf_message
 
-import "base:runtime"
-import "core:reflect"
-
 import "../builtins"
 import "../wire"
 
@@ -28,12 +25,12 @@ decode_fill :: proc(message: any, buffer: []u8) -> (ok: bool) {
 
 		switch type_variant in field_info.type {
 			case Field_Type_Scalar:
-				base_ptr = uintptr(field_info.ptr)
+				base_ptr = uintptr(field_info.data.(Field_Data_Scalar))
 				elem_typeid = type_variant.type
 
 			case Field_Type_Repeated:
-				slice := new_repeated(type_variant, len(values)) or_return
-				(transmute(^runtime.Raw_Slice)(field_info.ptr))^ = slice
+				slice := field_info.data.(Field_Data_Repeated)
+				slice^ = new_repeated(type_variant, len(values)) or_return
 
 				base_ptr = uintptr(slice.data)
 				elem_stride = uintptr(type_variant.elem_size)
@@ -134,28 +131,4 @@ decode_fill_field :: proc(field: any, value: wire.Value, type: builtins.Type) ->
 	}
 
 	return true
-}
-
-@(private = "file")
-new_scalar :: proc(id: typeid) -> (any, bool) {
-	size := reflect.size_of_typeid(id)
-	align := reflect.align_of_typeid(id)
-
-	ptr, alloc_error := runtime.mem_alloc_bytes(size, align)
-	return {data = raw_data(ptr), id = id}, alloc_error == .None
-}
-
-@(private = "file")
-new_repeated :: proc(
-	slice_info: Field_Type_Repeated,
-	count: int,
-) -> (
-	runtime.Raw_Slice,
-	bool,
-) {
-	ptr, alloc_error := runtime.mem_alloc_bytes(
-		slice_info.elem_size * count,
-		slice_info.elem_align,
-	)
-	return {data = raw_data(ptr), len = count}, alloc_error == .None
 }
