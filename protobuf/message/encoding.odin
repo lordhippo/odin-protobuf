@@ -1,71 +1,63 @@
 package protobuf_message
 
 import "base:runtime"
-import "core:reflect"
-import "core:strconv"
 
 import "../builtins"
 import "../wire"
 
 encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 	wire_message: wire.Message
-	wire_message.fields = make(map[u32]wire.Field)
+	wire_message.fields = make_map(
+		map[u32]wire.Field,
+		allocator = context.temp_allocator,
+	)
 
-	type_offsets := reflect.struct_field_offsets(message.id)
-	type_types := reflect.struct_field_types(message.id)
-	type_tags := reflect.struct_field_tags(message.id)
+	field_count := struct_field_count(message) or_return
 
-	for field_tag, field_idx in type_tags {
-		tag_id_str := reflect.struct_tag_lookup(field_tag, "id") or_return
-		tag_id := u32(strconv.parse_uint(tag_id_str) or_return)
-
-		tag_type_str := reflect.struct_tag_lookup(field_tag, "type") or_return
-		tag_type_int := strconv.parse_uint(tag_type_str) or_return
-		tag_type := builtins.Type(tag_type_int)
-
-		field_offset := type_offsets[field_idx]
-		field_ptr := rawptr(uintptr(message.data) + field_offset)
-
-		field_type := type_types[field_idx]
+	for field_idx in 0 ..< field_count {
+		field_info := struct_field_info(message, field_idx) or_return
 
 		wire_tag: wire.Tag = {
-			field_number = tag_id,
-			type         = builtins.wire_type(tag_type),
+			field_number = field_info.proto_id,
+			type         = builtins.wire_type(field_info.proto_type),
 		}
-		wire_values := make([dynamic]wire.Value, context.temp_allocator)
 
 		base_ptr: uintptr
 		elem_size: uintptr
 		elem_count: uintptr = 1
 		elem_typeid: typeid
 
-		if variant, v_ok := field_type.variant.(runtime.Type_Info_Slice); v_ok {
-			slice := (transmute(^runtime.Raw_Slice)(field_ptr))
+		switch type_variant in field_info.type {
+			case Field_Type_Scalar:
+				base_ptr = uintptr(field_info.ptr)
+				elem_typeid = type_variant.type
+			case Field_Type_Repeated:
+				slice := (transmute(^runtime.Raw_Slice)(field_info.ptr))
 
-			base_ptr = uintptr(slice.data)
-			elem_size = uintptr(variant.elem.size)
-			elem_count = uintptr(slice.len)
+				base_ptr = uintptr(slice.data)
+				elem_count = uintptr(slice.len)
 
-			elem_typeid = variant.elem.id
-		} else {
-			base_ptr = uintptr(field_ptr)
-			elem_typeid = field_type.id
+				elem_size = uintptr(type_variant.elem_size)
+				elem_typeid = type_variant.elem_type
+			case Field_Type_Map:
+				unimplemented()
 		}
 
-		// avoid multiple reallocs
-		reserve_dynamic_array(&wire_values, int(elem_count))
+		wire_values := make_dynamic_array_len(
+			[dynamic]wire.Value,
+			int(elem_count),
+			context.temp_allocator,
+		)
 
 		for elem_idx in 0 ..< elem_count {
 			current_ptr := rawptr(base_ptr + elem_idx * elem_size)
-			wire_value := encode_field(
+			wire_values[elem_idx] = encode_field(
 				{data = current_ptr, id = elem_typeid},
-				tag_type,
+				field_info.proto_type,
 			) or_return
-
-			append(&wire_values, wire_value)
 		}
 
-		wire_message.fields[tag_id] = {
+		wire_message.fields[field_info.proto_id] = {
 			tag    = wire_tag,
 			values = wire_values,
 		}
