@@ -95,6 +95,15 @@ struct_field_info :: proc(
 }
 
 @(private = "package")
+is_packed :: proc(field_info: Field_Info) -> bool {
+	if repeated, repeated_ok := field_info.type.(Field_Type_Repeated);
+	   repeated_ok && repeated.is_packed {
+		return true
+	}
+	return false
+}
+
+@(private = "package")
 struct_field_count :: proc(message: any) -> (count: int, ok: bool) {
 	ti := runtime.type_info_base(type_info_of(message.id))
 	s := ti.variant.(runtime.Type_Info_Struct) or_return

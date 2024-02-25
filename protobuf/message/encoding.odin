@@ -15,11 +15,6 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 	for field_idx in 0 ..< field_count {
 		field_info := struct_field_info(message, field_idx) or_return
 
-		wire_tag: wire.Tag = {
-			field_number = field_info.proto_id,
-			type         = builtins.wire_type(field_info.proto_type),
-		}
-
 		base_ptr: uintptr
 		elem_size: uintptr
 		elem_count: uintptr = 1
@@ -49,6 +44,19 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 				{data = current_ptr, id = elem_typeid},
 				field_info.proto_type,
 			) or_return
+		}
+
+		wire_tag: wire.Tag = {
+			field_number = field_info.proto_id,
+			type         = builtins.wire_type(field_info.proto_type),
+		}
+
+		// Compact values into one LEN-type value
+		if is_packed(field_info) {
+			packed_val := wire.encode_packed(wire_values) or_return
+			wire_values = {packed_val}
+
+			wire_tag.type = .LEN
 		}
 
 		wire_message.fields[field_info.proto_id] = {

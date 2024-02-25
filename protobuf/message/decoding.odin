@@ -19,6 +19,14 @@ decode_fill :: proc(message: any, buffer: []u8) -> (ok: bool) {
 
 		values := wire_message.fields[field_info.proto_id].values
 
+		// Expand LEN-type value into an array of values
+		if is_packed(field_info) {
+			assert(len(values) == 1)
+
+			wire_type := builtins.wire_type(field_info.proto_type)
+			values = wire.decode_packed(values[0].(wire.Value_LEN), wire_type) or_return
+		}
+
 		base_ptr: uintptr
 		elem_stride: uintptr
 		elem_typeid: typeid
