@@ -30,8 +30,10 @@ Type :: enum uint {
 	t_string   = 9,
 	t_bytes    = 12,
 	// GROUP
-	t_group = 10,
+	t_group    = 10,
 }
+
+Enum_Wire_Type :: distinct i32
 
 wire_type :: proc(type: Type) -> wire.Type {
 	switch type {

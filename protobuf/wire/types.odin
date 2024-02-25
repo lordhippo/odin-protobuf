@@ -39,5 +39,3 @@ Field :: struct {
 Message :: struct {
 	fields: map[u32]Field,
 }
-
-Enum_Wire_Type :: distinct i32

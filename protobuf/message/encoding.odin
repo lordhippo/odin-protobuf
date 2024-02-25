@@ -96,7 +96,7 @@ encode_field :: proc(
 			wire_value = builtins.encode_bool((transmute(^bool)field.data)^)
 		case .t_enum:
 			wire_value = builtins.encode_enum(
-				(transmute(^wire.Enum_Wire_Type)field.data)^,
+				(transmute(^builtins.Enum_Wire_Type)field.data)^,
 			)
 		case .t_sint32:
 			wire_value = builtins.encode_sint32((transmute(^i32)field.data)^)

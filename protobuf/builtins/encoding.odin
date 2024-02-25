@@ -27,7 +27,7 @@ encode_bool :: proc(value: bool) -> wire.Value_VARINT {
 	return encode_int32(value_i32)
 }
 
-encode_enum :: proc(value: wire.Enum_Wire_Type) -> wire.Value_VARINT {
+encode_enum :: proc(value: Enum_Wire_Type) -> wire.Value_VARINT {
 	return encode_int32(i32(value))
 }
 

@@ -90,7 +90,7 @@ decode_fill_field :: proc(field: any, value: wire.Value, type: builtins.Type) ->
 				value.(wire.Value_VARINT),
 			)
 		case .t_enum:
-			(transmute(^wire.Enum_Wire_Type)field.data)^ = builtins.decode_enum(
+			(transmute(^builtins.Enum_Wire_Type)field.data)^ = builtins.decode_enum(
 				value.(wire.Value_VARINT),
 			)
 		case .t_sint32:

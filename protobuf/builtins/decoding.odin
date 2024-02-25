@@ -31,8 +31,8 @@ decode_bool :: proc(value: wire.Value_VARINT) -> bool {
 	return bool(value_i32)
 }
 
-decode_enum :: proc(value: wire.Value_VARINT) -> wire.Enum_Wire_Type {
-	return wire.Enum_Wire_Type(decode_int32(value))
+decode_enum :: proc(value: wire.Value_VARINT) -> Enum_Wire_Type {
+	return Enum_Wire_Type(decode_int32(value))
 }
 
 decode_sint32 :: proc(value: wire.Value_VARINT) -> i32 {
