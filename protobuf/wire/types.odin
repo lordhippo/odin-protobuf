@@ -34,7 +34,7 @@ Field :: struct {
 	//     - string / byte[]: concatenate
 	//     - message: merge (concatenate at this level)
 	// - repeated fields: array
-	values: [dynamic]Value,
+	values: []Value,
 }
 
 Message :: struct {

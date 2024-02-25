@@ -19,7 +19,8 @@ main :: proc() {
 
 		if encoded_buffer, encode_ok := protobuf.encode(message); encode_ok {
 			fmt.printf("Encoded message: %x\n", encoded_buffer)
-			if message, ok := protobuf.decode(examples.Example_Message, encoded_buffer); ok {
+			if message, ok := protobuf.decode(examples.Example_Message, encoded_buffer);
+			   ok {
 				fmt.printf("Decoded message: %#v\n", message)
 			} else {
 				fmt.eprintf("Failed to decode message\n")

@@ -43,11 +43,7 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 				unimplemented()
 		}
 
-		wire_values := make_dynamic_array_len(
-			[dynamic]wire.Value,
-			int(elem_count),
-			context.temp_allocator,
-		)
+		wire_values := make_slice([]wire.Value, int(elem_count), context.temp_allocator)
 
 		for elem_idx in 0 ..< elem_count {
 			current_ptr := rawptr(base_ptr + elem_idx * elem_size)
