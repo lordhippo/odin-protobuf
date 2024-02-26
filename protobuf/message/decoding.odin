@@ -4,7 +4,6 @@ import "../builtins"
 import "../wire"
 
 import "base:runtime"
-import "core:fmt"
 
 decode :: proc(message_tid: typeid, buffer: []u8) -> (message: any, ok: bool) {
 	message = new_scalar(message_tid) or_return
@@ -133,8 +132,6 @@ decode_field_map :: proc(field_info: Field_Info, wire_field: wire.Field) -> (ok:
 
 		decode_field_scalar(key_field_info, key_field) or_return
 		decode_field_scalar(value_field_info, value_field) or_return
-
-		fmt.printf("%v: %v\n", tmp_key_data, tmp_value_data)
 
 		if entry := runtime.__dynamic_map_set_without_hash(
 			(^runtime.Raw_Map)(map_data),
