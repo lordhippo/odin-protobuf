@@ -3,6 +3,9 @@ package protobuf_message
 import "../builtins"
 import "../wire"
 
+import "base:runtime"
+import "core:fmt"
+
 decode :: proc(message_tid: typeid, buffer: []u8) -> (message: any, ok: bool) {
 	message = new_scalar(message_tid) or_return
 	return message, decode_fill(message, buffer)
@@ -83,8 +86,63 @@ decode_field_repeated :: proc(field_info: Field_Info, wire_field: wire.Field) ->
 }
 
 @(private = "file")
-decode_field_map :: proc(field_info: Field_Info, wire_field: wire.Field) -> bool {
-	unimplemented()
+decode_field_map :: proc(field_info: Field_Info, wire_field: wire.Field) -> (ok: bool) {
+	map_type := field_info.type.(Field_Type_Map)
+
+	key_field_info: Field_Info = {
+		proto_id   = map_type.key.proto_id,
+		proto_type = map_type.key.proto_type,
+		type       = map_type.key.type,
+	}
+
+	value_field_info: Field_Info = {
+		proto_id   = map_type.value.proto_id,
+		proto_type = map_type.value.proto_type,
+		type       = map_type.value.type,
+	}
+
+	map_data := field_info.data.(Field_Data_Map)
+	map_data.allocator = context.temp_allocator
+
+	if alloc_result := runtime.map_reserve_dynamic(
+		(^runtime.Raw_Map)(map_data),
+		map_type.map_info,
+		uintptr(len(wire_field.values)),
+	); alloc_result != nil {
+		return
+	}
+
+	tmp_key_data := new_scalar(key_field_info.type.(Field_Type_Scalar).type) or_return
+	tmp_value_data := new_scalar(value_field_info.type.(Field_Type_Scalar).type) or_return
+	defer free(tmp_key_data.data)
+	defer free(tmp_value_data.data)
+
+	for value in wire_field.values {
+		entry_bytes := builtins.decode_bytes(value.(wire.Value_LEN))
+		entry_message := wire.decode(entry_bytes) or_return
+
+		key_field := entry_message.fields[key_field_info.proto_id]
+		value_field := entry_message.fields[value_field_info.proto_id]
+
+		key_field_info.data = Field_Data_Scalar(tmp_key_data.data)
+		value_field_info.data = Field_Data_Scalar(tmp_value_data.data)
+
+		decode_field_scalar(key_field_info, key_field) or_return
+		decode_field_scalar(value_field_info, value_field) or_return
+
+		fmt.printf("%v: %v\n", tmp_key_data, tmp_value_data)
+
+		if entry := runtime.__dynamic_map_set_without_hash(
+			(^runtime.Raw_Map)(map_data),
+			map_type.map_info,
+			tmp_key_data.data,
+			tmp_value_data.data,
+		); entry == nil {
+			return
+		}
+	}
+
+	return true
 }
 
 @(private = "file")
@@ -92,57 +150,35 @@ decode_fill_field :: proc(field: any, value: wire.Value, type: builtins.Type) ->
 	switch type {
 		// VARINT-backing
 		case .t_int32:
-			(transmute(^i32)field.data)^ = builtins.decode_int32(
-				value.(wire.Value_VARINT),
-			)
+			(transmute(^i32)field.data)^ = builtins.decode_int32(value.(wire.Value_VARINT))
 		case .t_int64:
-			(transmute(^i64)field.data)^ = builtins.decode_int64(
-				value.(wire.Value_VARINT),
-			)
+			(transmute(^i64)field.data)^ = builtins.decode_int64(value.(wire.Value_VARINT))
 		case .t_uint32:
-			(transmute(^u32)field.data)^ = builtins.decode_uint32(
-				value.(wire.Value_VARINT),
-			)
+			(transmute(^u32)field.data)^ = builtins.decode_uint32(value.(wire.Value_VARINT))
 		case .t_uint64:
-			(transmute(^u64)field.data)^ = builtins.decode_uint64(
-				value.(wire.Value_VARINT),
-			)
+			(transmute(^u64)field.data)^ = builtins.decode_uint64(value.(wire.Value_VARINT))
 		case .t_bool:
-			(transmute(^bool)field.data)^ = builtins.decode_bool(
-				value.(wire.Value_VARINT),
-			)
+			(transmute(^bool)field.data)^ = builtins.decode_bool(value.(wire.Value_VARINT))
 		case .t_enum:
 			(transmute(^builtins.Enum_Wire_Type)field.data)^ = builtins.decode_enum(
 				value.(wire.Value_VARINT),
 			)
 		case .t_sint32:
-			(transmute(^i32)field.data)^ = builtins.decode_sint32(
-				value.(wire.Value_VARINT),
-			)
+			(transmute(^i32)field.data)^ = builtins.decode_sint32(value.(wire.Value_VARINT))
 		case .t_sint64:
-			(transmute(^i64)field.data)^ = builtins.decode_sint64(
-				value.(wire.Value_VARINT),
-			)
+			(transmute(^i64)field.data)^ = builtins.decode_sint64(value.(wire.Value_VARINT))
 		// I32-backing
 		case .t_sfixed32:
-			(transmute(^i32)field.data)^ = builtins.decode_sfixed32(
-				value.(wire.Value_I32),
-			)
+			(transmute(^i32)field.data)^ = builtins.decode_sfixed32(value.(wire.Value_I32))
 		case .t_fixed32:
-			(transmute(^u32)field.data)^ = builtins.decode_fixed32(
-				value.(wire.Value_I32),
-			)
+			(transmute(^u32)field.data)^ = builtins.decode_fixed32(value.(wire.Value_I32))
 		case .t_float:
 			(transmute(^f32)field.data)^ = builtins.decode_float(value.(wire.Value_I32))
 		// I64-backing
 		case .t_sfixed64:
-			(transmute(^i64)field.data)^ = builtins.decode_sfixed64(
-				value.(wire.Value_I64),
-			)
+			(transmute(^i64)field.data)^ = builtins.decode_sfixed64(value.(wire.Value_I64))
 		case .t_fixed64:
-			(transmute(^u64)field.data)^ = builtins.decode_fixed64(
-				value.(wire.Value_I64),
-			)
+			(transmute(^u64)field.data)^ = builtins.decode_fixed64(value.(wire.Value_I64))
 		case .t_double:
 			(transmute(^f64)field.data)^ = builtins.decode_double(value.(wire.Value_I64))
 		// LEN-backing
@@ -151,14 +187,10 @@ decode_fill_field :: proc(field: any, value: wire.Value, type: builtins.Type) ->
 			decode_fill(field, field_bytes) or_return
 		case .t_string:
 			// TODO: handle concatenation
-			(transmute(^string)field.data)^ = builtins.decode_string(
-				value.(wire.Value_LEN),
-			)
+			(transmute(^string)field.data)^ = builtins.decode_string(value.(wire.Value_LEN))
 		case .t_bytes:
 			// TODO: handle concatenation
-			(transmute(^([]u8))field.data)^ = builtins.decode_bytes(
-				value.(wire.Value_LEN),
-			)
+			(transmute(^([]u8))field.data)^ = builtins.decode_bytes(value.(wire.Value_LEN))
 		case .t_group:
 			unimplemented()
 	}

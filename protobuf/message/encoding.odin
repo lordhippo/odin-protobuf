@@ -93,11 +93,6 @@ encode_field_map :: proc(field_info: Field_Info) -> (field: wire.Field, ok: bool
 
 	map_type := field_info.type.(Field_Type_Map)
 
-	// TODO: assert instead?
-	if map_type.map_info == nil {
-		return
-	}
-
 	key_field_info: Field_Info = {
 		proto_id   = map_type.key.proto_id,
 		proto_type = map_type.key.proto_type,
