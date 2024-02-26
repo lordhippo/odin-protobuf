@@ -3,12 +3,12 @@ package protobuf_message
 import "../builtins"
 import "../wire"
 
+import "base:runtime"
+
 encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
-	wire_message: wire.Message
-	wire_message.fields = make_map(
-		map[u32]wire.Field,
-		allocator = context.temp_allocator,
-	)
+	wire_message: wire.Message = {
+		fields = make_map(map[u32]wire.Field, allocator = context.temp_allocator),
+	}
 
 	field_count := struct_field_count(message) or_return
 
@@ -40,7 +40,7 @@ encode_field_scalar :: proc(field_info: Field_Info) -> (field: wire.Field, ok: b
 	}
 
 	field.values = make_slice([]wire.Value, 1, context.temp_allocator)
-	field.values[0] = encode_field(
+	field.values[0] = encode_field_value(
 		 {
 			data = rawptr(field_info.data.(Field_Data_Scalar)),
 			id = field_info.type.(Field_Type_Scalar).type,
@@ -68,7 +68,7 @@ encode_field_repeated :: proc(field_info: Field_Info) -> (field: wire.Field, ok:
 	for elem_idx in 0 ..< slice_data.len {
 		offset := uintptr(elem_idx * slice_info.elem_size)
 		current_ptr := rawptr(uintptr(slice_data.data) + offset)
-		field.values[elem_idx] = encode_field(
+		field.values[elem_idx] = encode_field_value(
 			{data = current_ptr, id = slice_info.elem_type},
 			field_info.proto_type,
 		) or_return
@@ -86,11 +86,91 @@ encode_field_repeated :: proc(field_info: Field_Info) -> (field: wire.Field, ok:
 
 @(private = "file")
 encode_field_map :: proc(field_info: Field_Info) -> (field: wire.Field, ok: bool) {
-	unimplemented()
+	field.tag = {
+		field_number = field_info.proto_id,
+		type         = builtins.wire_type(field_info.proto_type),
+	}
+
+	map_type := field_info.type.(Field_Type_Map)
+
+	// TODO: assert instead?
+	if map_type.map_info == nil {
+		return
+	}
+
+	key_field_info: Field_Info = {
+		proto_id   = map_type.key.proto_id,
+		proto_type = map_type.key.proto_type,
+		type       = map_type.key.type,
+	}
+
+	value_field_info: Field_Info = {
+		proto_id   = map_type.value.proto_id,
+		proto_type = map_type.value.proto_type,
+		type       = map_type.value.type,
+	}
+
+	map_data := field_info.data.(Field_Data_Map)
+
+	ks, vs, hashes, _, _ := runtime.map_kvh_data_dynamic(map_data^, map_type.map_info)
+
+	entry_count := int(runtime.map_cap(map_data^))
+	values := make_dynamic_array_len_cap(
+		[dynamic]wire.Value,
+		len = 0,
+		cap = entry_count,
+		allocator = context.temp_allocator,
+	)
+
+	entry_fields := make_map(
+		map[u32]wire.Field,
+		capacity = 2,
+		allocator = context.temp_allocator,
+	)
+
+	for entry_idx := 0; entry_idx < entry_count; entry_idx += 1 {
+		hash := hashes[entry_idx]
+		if !runtime.map_hash_is_valid(hash) {
+			continue
+		}
+
+		clear_map(&entry_fields)
+		entry_wire: wire.Message = {
+			fields = entry_fields,
+		}
+
+		key_ptr := runtime.map_cell_index_dynamic(
+			ks,
+			map_type.map_info.ks,
+			uintptr(entry_idx),
+		)
+		value_ptr := runtime.map_cell_index_dynamic(
+			vs,
+			map_type.map_info.vs,
+			uintptr(entry_idx),
+		)
+
+		key_field_info.data = Field_Data_Scalar(key_ptr)
+		value_field_info.data = Field_Data_Scalar(value_ptr)
+
+		entry_wire.fields[key_field_info.proto_id] = encode_field_scalar(
+			key_field_info,
+		) or_return
+		entry_wire.fields[value_field_info.proto_id] = encode_field_scalar(
+			value_field_info,
+		) or_return
+
+		entry_encoded := wire.encode(entry_wire) or_return
+		append(&values, builtins.encode_bytes(entry_encoded))
+	}
+
+	field.values = values[:]
+
+	return field, true
 }
 
 @(private = "file")
-encode_field :: proc(
+encode_field_value :: proc(
 	field: any,
 	type: builtins.Type,
 ) -> (

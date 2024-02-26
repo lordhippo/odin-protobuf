@@ -17,13 +17,16 @@ Field_Type_Repeated :: struct {
 	is_packed:  bool,
 }
 
+Field_Type_Map_Field :: struct {
+	proto_id:   u32,
+	proto_type: builtins.Type,
+	type:       Field_Type_Scalar,
+}
+
 Field_Type_Map :: struct {
-	key_proto_id:     u32,
-	key_proto_type:   builtins.Type,
-	key_type:         typeid,
-	value_proto_id:   u32,
-	value_proto_type: builtins.Type,
-	value_type:       typeid,
+	key:      Field_Type_Map_Field,
+	value:    Field_Type_Map_Field,
+	map_info: ^runtime.Map_Info,
 }
 
 Field_Type :: union {
@@ -65,13 +68,7 @@ field_tag_lookup_type :: proc(
 }
 
 @(private = "file")
-field_tag_lookup_id :: proc(
-	field: reflect.Struct_Field,
-	tag: string,
-) -> (
-	id: u32,
-	ok: bool,
-) {
+field_tag_lookup_id :: proc(field: reflect.Struct_Field, tag: string) -> (id: u32, ok: bool) {
 	id_str := reflect.struct_tag_lookup(field.tag, tag) or_return
 	id_uint := strconv.parse_uint(id_str) or_return
 	return u32(id_uint), true
@@ -117,18 +114,17 @@ struct_field_info :: proc(
 
 		case runtime.Type_Info_Map:
 			field_info.type = Field_Type_Map {
-				key_proto_id     = 1,
-				key_proto_type   = field_tag_lookup_type(
-					field_rtti,
-					"key_type",
-				) or_return,
-				key_type         = type_variant.key.id,
-				value_proto_id   = 2,
-				value_proto_type = field_tag_lookup_type(
-					field_rtti,
-					"value_type",
-				) or_return,
-				value_type       = type_variant.value.id,
+				key =  {
+					proto_id = 1,
+					proto_type = field_tag_lookup_type(field_rtti, "key_type") or_return,
+					type = {type = type_variant.key.id},
+				},
+				value =  {
+					proto_id = 2,
+					proto_type = field_tag_lookup_type(field_rtti, "value_type") or_return,
+					type = {type = type_variant.value.id},
+				},
+				map_info = type_variant.map_info,
 			}
 
 			field_info.data = transmute(Field_Data_Map)(field_ptr)
