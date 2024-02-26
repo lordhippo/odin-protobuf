@@ -157,11 +157,11 @@ struct_field_count :: proc(message: any) -> (count: int, ok: bool) {
 }
 
 @(private = "package")
-new_scalar :: proc(id: typeid) -> (any, bool) {
+new_scalar :: proc(id: typeid, allocator := context.allocator) -> (any, bool) {
 	size := reflect.size_of_typeid(id)
 	align := reflect.align_of_typeid(id)
 
-	ptr, alloc_error := runtime.mem_alloc_bytes(size, align)
+	ptr, alloc_error := runtime.mem_alloc_bytes(size, align, allocator)
 	return {data = raw_data(ptr), id = id}, alloc_error == .None
 }
 
@@ -169,6 +169,7 @@ new_scalar :: proc(id: typeid) -> (any, bool) {
 new_repeated :: proc(
 	slice_info: Field_Type_Repeated,
 	count: int,
+	allocator := context.allocator,
 ) -> (
 	runtime.Raw_Slice,
 	bool,
@@ -176,6 +177,7 @@ new_repeated :: proc(
 	ptr, alloc_error := runtime.mem_alloc_bytes(
 		slice_info.elem_size * count,
 		slice_info.elem_align,
+		allocator,
 	)
 	return {data = raw_data(ptr), len = count}, alloc_error == .None
 }

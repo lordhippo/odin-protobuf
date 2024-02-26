@@ -112,10 +112,14 @@ decode_field_map :: proc(field_info: Field_Info, wire_field: wire.Field) -> (ok:
 		return
 	}
 
-	tmp_key_data := new_scalar(key_field_info.type.(Field_Type_Scalar).type) or_return
-	tmp_value_data := new_scalar(value_field_info.type.(Field_Type_Scalar).type) or_return
-	defer free(tmp_key_data.data)
-	defer free(tmp_value_data.data)
+	tmp_key_data := new_scalar(
+		key_field_info.type.(Field_Type_Scalar).type,
+		context.temp_allocator,
+	) or_return
+	tmp_value_data := new_scalar(
+		value_field_info.type.(Field_Type_Scalar).type,
+		context.temp_allocator,
+	) or_return
 
 	for value in wire_field.values {
 		entry_bytes := builtins.decode_bytes(value.(wire.Value_LEN))
