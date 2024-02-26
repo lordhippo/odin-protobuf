@@ -122,15 +122,16 @@ struct_field_info :: proc(
 					field_rtti,
 					"key_type",
 				) or_return,
+				key_type         = type_variant.key.id,
 				value_proto_id   = 2,
 				value_proto_type = field_tag_lookup_type(
 					field_rtti,
 					"value_type",
 				) or_return,
+				value_type       = type_variant.value.id,
 			}
 
 			field_info.data = transmute(Field_Data_Map)(field_ptr)
-			unimplemented()
 
 		case:
 			field_info.type = Field_Type_Scalar {
