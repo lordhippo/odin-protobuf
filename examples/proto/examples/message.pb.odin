@@ -17,7 +17,7 @@ Example_Message :: struct {
   arr_text : []string `id:"5" type:"9"`,
   arr_inner : []Inner_Message `id:"6" type:"11"`,
   my_enum : Example_Enum `id:"7" type:"14"`,
-  test_map : map[string]Example_Enum `id:"10" type:"11"`,
+  test_map : map[string]Example_Enum `id:"10" type:"11" key_type:"9" value_type:"14"`,
 }
 
 Example_Enum :: enum {
