@@ -14,6 +14,7 @@ main :: proc() {
 		arr_text = {"Lord", "Hippo"},
 		arr_inner = {{number = 9.8, text = "foo"}, {number = 11.11, text = "bar"}},
 		my_enum = .First,
+		test_map = {"first" = .First, "second" = .Second},
 	}
 
 	if encoded_buffer, encode_ok := protobuf.encode(message); encode_ok {

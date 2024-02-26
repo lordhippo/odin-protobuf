@@ -17,7 +17,17 @@ Field_Type_Repeated :: struct {
 	is_packed:  bool,
 }
 
-Field_Type_Map :: struct {}
+Field_Type_Map_Field :: struct {
+	proto_id:   u32,
+	proto_type: builtins.Type,
+	type:       Field_Type_Scalar,
+}
+
+Field_Type_Map :: struct {
+	key:      Field_Type_Map_Field,
+	value:    Field_Type_Map_Field,
+	map_info: ^runtime.Map_Info,
+}
 
 Field_Type :: union {
 	Field_Type_Scalar,
@@ -44,6 +54,38 @@ Field_Info :: struct {
 	data:       Field_Data,
 }
 
+@(private = "file")
+field_tag_lookup_type :: proc(
+	field: reflect.Struct_Field,
+	tag: string,
+) -> (
+	type: builtins.Type,
+	ok: bool,
+) {
+	tag_str := reflect.struct_tag_lookup(field.tag, tag) or_return
+	tag_int := strconv.parse_uint(tag_str) or_return
+	return builtins.Type(tag_int), true
+}
+
+@(private = "file")
+field_tag_lookup_id :: proc(field: reflect.Struct_Field, tag: string) -> (id: u32, ok: bool) {
+	id_str := reflect.struct_tag_lookup(field.tag, tag) or_return
+	id_uint := strconv.parse_uint(id_str) or_return
+	return u32(id_uint), true
+}
+
+@(private = "file")
+field_tag_lookup_bool :: proc(
+	field: reflect.Struct_Field,
+	tag: string,
+) -> (
+	result: bool,
+	ok: bool,
+) {
+	bool_str := reflect.struct_tag_lookup(field.tag, tag) or_return
+	return strconv.parse_bool(bool_str)
+}
+
 @(private = "package")
 struct_field_info :: proc(
 	message: any,
@@ -54,34 +96,38 @@ struct_field_info :: proc(
 ) {
 	field_rtti := reflect.struct_field_at(message.id, field_idx)
 
-	id_str := reflect.struct_tag_lookup(field_rtti.tag, "id") or_return
-	field_info.proto_id = u32(strconv.parse_uint(id_str) or_return)
-
-	tag_type_str := reflect.struct_tag_lookup(field_rtti.tag, "type") or_return
-	tag_type_int := strconv.parse_uint(tag_type_str) or_return
-	field_info.proto_type = builtins.Type(tag_type_int)
+	field_info.proto_id = field_tag_lookup_id(field_rtti, "id") or_return
+	field_info.proto_type = field_tag_lookup_type(field_rtti, "type") or_return
 
 	field_ptr := rawptr(uintptr(message.data) + field_rtti.offset)
 
 	#partial switch type_variant in field_rtti.type.variant {
 		case runtime.Type_Info_Slice:
-			packed_str :=
-				reflect.struct_tag_lookup(field_rtti.tag, "packed") or_else "false"
-
 			field_info.type = Field_Type_Repeated {
 				elem_size  = type_variant.elem.size,
 				elem_align = type_variant.elem.align,
 				elem_type  = type_variant.elem.id,
-				is_packed  = strconv.parse_bool(packed_str) or_return,
+				is_packed  = field_tag_lookup_bool(field_rtti, "packed") or_else false,
 			}
 
 			field_info.data = transmute(Field_Data_Repeated)(field_ptr)
 
 		case runtime.Type_Info_Map:
-			field_info.type = Field_Type_Map{}
+			field_info.type = Field_Type_Map {
+				key =  {
+					proto_id = 1,
+					proto_type = field_tag_lookup_type(field_rtti, "key_type") or_return,
+					type = {type = type_variant.key.id},
+				},
+				value =  {
+					proto_id = 2,
+					proto_type = field_tag_lookup_type(field_rtti, "value_type") or_return,
+					type = {type = type_variant.value.id},
+				},
+				map_info = type_variant.map_info,
+			}
 
 			field_info.data = transmute(Field_Data_Map)(field_ptr)
-			unimplemented()
 
 		case:
 			field_info.type = Field_Type_Scalar {
@@ -111,11 +157,11 @@ struct_field_count :: proc(message: any) -> (count: int, ok: bool) {
 }
 
 @(private = "package")
-new_scalar :: proc(id: typeid) -> (any, bool) {
+new_scalar :: proc(id: typeid, allocator := context.allocator) -> (any, bool) {
 	size := reflect.size_of_typeid(id)
 	align := reflect.align_of_typeid(id)
 
-	ptr, alloc_error := runtime.mem_alloc_bytes(size, align)
+	ptr, alloc_error := runtime.mem_alloc_bytes(size, align, allocator)
 	return {data = raw_data(ptr), id = id}, alloc_error == .None
 }
 
@@ -123,6 +169,7 @@ new_scalar :: proc(id: typeid) -> (any, bool) {
 new_repeated :: proc(
 	slice_info: Field_Type_Repeated,
 	count: int,
+	allocator := context.allocator,
 ) -> (
 	runtime.Raw_Slice,
 	bool,
@@ -130,6 +177,7 @@ new_repeated :: proc(
 	ptr, alloc_error := runtime.mem_alloc_bytes(
 		slice_info.elem_size * count,
 		slice_info.elem_align,
+		allocator,
 	)
 	return {data = raw_data(ptr), len = count}, alloc_error == .None
 }
