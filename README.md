@@ -1,7 +1,4 @@
 # odin-protobuf
-
-**WIP**
-
 [Protobuf](https://github.com/protocolbuffers/protobuf) support for Odin. To generate Odin files from proto definitions, use the [odin-protoc-plugin](https://github.com/lordhippo/odin-protoc-plugin).
 
 ## Usage
