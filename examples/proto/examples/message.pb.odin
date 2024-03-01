@@ -18,6 +18,11 @@ Example_Message :: struct {
   arr_inner : []Inner_Message `id:"6" type:"11"`,
   my_enum : Example_Enum `id:"7" type:"14"`,
   test_map : map[string]Example_Enum `id:"10" type:"11" key_type:"9" value_type:"14"`,
+
+  test_oneof: struct #raw_union {
+    oneof_name : string `id:"8" type:"9"`,
+    oneof_message : Inner_Message `id:"9" type:"11"`,
+  },
 }
 
 Example_Enum :: enum {
