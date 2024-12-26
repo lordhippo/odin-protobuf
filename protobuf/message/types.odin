@@ -153,7 +153,7 @@ is_packed :: proc(field_info: Field_Info) -> bool {
 struct_field_count :: proc(message: any) -> (count: int, ok: bool) {
 	ti := runtime.type_info_base(type_info_of(message.id))
 	s := ti.variant.(runtime.Type_Info_Struct) or_return
-	return len(s.names), true
+	return int(s.field_count), true
 }
 
 @(private = "package")

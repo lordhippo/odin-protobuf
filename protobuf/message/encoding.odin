@@ -117,7 +117,7 @@ encode_field_map :: proc(field_info: Field_Info) -> (field: wire.Field, ok: bool
 		allocator = context.temp_allocator,
 	)
 
-	entry_fields := make_map(
+	entry_fields := make_map_cap(
 		map[u32]wire.Field,
 		capacity = 2,
 		allocator = context.temp_allocator,
