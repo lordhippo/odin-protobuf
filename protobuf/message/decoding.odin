@@ -4,10 +4,16 @@ import "../builtins"
 import "../wire"
 
 import "base:runtime"
+import "core:slice"
 
-decode :: proc(message_tid: typeid, buffer: []u8) -> (message: any, ok: bool) {
-	message = new_scalar(message_tid) or_return
-	return message, decode_fill(message, buffer)
+decode :: proc($T: typeid, buffer: []u8) -> (message: ^T, ok: bool) {
+    msg, success := new_scalar(typeid_of(T))
+    if !success {
+        return nil, false
+    }
+
+    filled := decode_fill(msg, buffer)
+    return cast(^T)msg.data, filled
 }
 
 @(private = "file")
