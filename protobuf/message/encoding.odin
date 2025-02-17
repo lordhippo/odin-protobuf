@@ -11,6 +11,7 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 	}
 
 	field_count := struct_field_count(message) or_return
+    empty_fields := [dynamic]int{}
 
 	for field_idx in 0 ..< field_count {
 		field_info := struct_field_info(message, field_idx) or_return
@@ -26,10 +27,36 @@ encode :: proc(message: any) -> (buffer: []u8, ok: bool) {
 				wire_field = encode_field_map(field_info) or_return
 		}
 
+        if check_is_empty(wire_field) {
+            append(&empty_fields, field_idx)
+            continue
+        }
+
 		wire_message.fields[wire_field.tag.field_number] = wire_field
 	}
 
-	return wire.encode(wire_message)
+    for idx, _ in empty_fields {
+        delete_key(&wire_message.fields, u32(idx))
+    }
+
+    return wire.encode(wire_message)
+}
+
+@(private = "file")
+check_is_empty :: proc(f: wire.Field) -> bool {
+    // groups not supported, they are depreciated
+    #partial switch f.tag.type {
+    case wire.Type.I64:
+        return f.values[0].(wire.Value_I64) == 0
+    case wire.Type.LEN:
+        return len(f.values[0].(wire.Value_LEN)) == 0
+    case wire.Type.I32:
+        return f.values[0].(wire.Value_I32) == 0
+    case wire.Type.VARINT:
+        return f.values[0].(wire.Value_VARINT) == 0
+    }
+
+    return false
 }
 
 @(private = "file")
