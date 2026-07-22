@@ -1,5 +1,10 @@
 package protobuf_wire
 
+// LEN prefixes are encoded as an int32 varint, so a single length-delimited
+// payload (string, bytes, embedded message, packed field) tops out at 2GB.
+// https://protobuf.dev/programming-guides/encoding/#size-limit
+MAX_LEN_SIZE :: 0x7fff_ffff
+
 Type :: enum u8 {
 	VARINT = 0, // int32, int64, uint32, uint64, sint32, sint64, bool, enum
 	I64    = 1, // fixed64, sfixed64, double

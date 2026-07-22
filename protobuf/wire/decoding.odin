@@ -94,7 +94,11 @@ decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok
 	case .LEN:
 		len_varint := decode_varint(buffer, index) or_return
 		length := int(len_varint)
-		if length < 0 || index^ + length > len(buffer) {
+		if length < 0 || length > MAX_LEN_SIZE {
+			fmt.eprintf("Failed to decode LEN: length exceeds the 2GB limit\n")
+			return value, false
+		}
+		if index^ + length > len(buffer) {
 			fmt.eprintf("Failed to decode LEN: out of bounds or invalid length\n")
 			return value, false
 		}

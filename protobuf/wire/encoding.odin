@@ -67,6 +67,12 @@ encode_value :: proc(value: Value, buffer: ^[dynamic]u8) -> bool {
 	case Value_I64:
 		encode_fixed(v, buffer) or_return
 	case Value_LEN:
+		// Guard before the u32 cast below, which would otherwise silently
+		// truncate the length and desync it from the bytes that follow.
+		if len(v) > MAX_LEN_SIZE {
+			fmt.eprintf("Failed to encode LEN: %v bytes exceeds the 2GB limit\n", len(v))
+			return false
+		}
 		encode_varint(u32(len(v)), buffer) or_return
 		non_zero_resize(buffer, len(buffer) + len(v))
 		copy(buffer[len(buffer) - len(v):], ([]u8)(v))

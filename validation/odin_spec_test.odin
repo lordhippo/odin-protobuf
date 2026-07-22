@@ -407,3 +407,29 @@ test_map_roundtrip_with_defaults :: proc(t: ^testing.T) {
 	testing.expect(t, has_zero, "default-key entry must survive round-trip")
 	testing.expect_value(t, v, "")
 }
+
+@(private = "file")
+LenMsg :: struct {
+	s: string `id:"1" type:"9"`,
+}
+
+// A LEN prefix is an int32 varint, so a declared length past 2GB is malformed
+// and must be rejected rather than acted on.
+//
+// Note: this only covers the decode guard. The matching encode guard (which
+// prevents a >2GB payload from being silently truncated by the u32 length cast)
+// is not exercised here, since triggering it would need a multi-GB allocation.
+@(test)
+test_len_over_size_limit_rejected :: proc(t: ^testing.T) {
+	context.allocator = context.temp_allocator
+	defer free_all(context.temp_allocator)
+
+	// field 1, LEN, with a length varint of 2^31 (one past the limit)
+	//odinfmt: disable
+	wire := [?]u8{
+		0x0a, 0x80, 0x80, 0x80, 0x80, 0x08,
+	}
+	//odinfmt: enable
+	_, ok := protobuf.decode(LenMsg, wire[:])
+	testing.expect(t, !ok, "a LEN length past 2GB must be rejected")
+}
