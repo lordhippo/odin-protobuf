@@ -1,5 +1,6 @@
 package protobuf_wire
 
+import "core:encoding/endian"
 import "core:encoding/varint"
 import "core:fmt"
 import "core:math/bits"
@@ -31,11 +32,28 @@ decode_fixed :: proc(
 		return 0, false
 	}
 
-	// TODO: handle endianness
-	value := (^T)(&buffer[index^])^
-	index^ += size_of(T)
+	bytes := buffer[index^:index^ + size_of(T)]
+	when T == Value_I32 {
+		raw, ok := endian.get_u32(bytes, .Little)
+		if !ok {
+			fmt.eprintf("Failed to decode fixed32: %+v\n", ok)
+			return 0, false
+		}
 
-	return value, true
+		index^ += size_of(T)
+		return transmute(T)raw, true
+	} else when T == Value_I64 {
+		raw, ok := endian.get_u64(bytes, .Little)
+		if !ok {
+			fmt.eprintf("Failed to decode fixed64: %+v\n", ok)
+			return 0, false
+		}
+
+		index^ += size_of(T)
+		return transmute(T)raw, true
+	}
+
+	return 0, false
 }
 
 @(private = "file")
@@ -46,33 +64,49 @@ decode_tag :: proc(buffer: []u8, index: ^int) -> (tag: Tag, ok: bool) {
 	tag.type = Type(bits.bitfield_extract(value, 0, 3))
 	tag.field_number = u32(bits.bitfield_extract(value, 3, 29))
 
+	if tag.field_number == 0 {
+		fmt.eprintf("Failed to decode tag: field number cannot be 0\n")
+		return tag, false
+	}
+	if tag.field_number >= 19000 && tag.field_number <= 19999 {
+		fmt.eprintf(
+			"Failed to decode tag: field number %v is in reserved range\n",
+			tag.field_number,
+		)
+		return tag, false
+	}
+
 	return tag, true
 }
 
 @(private = "file")
 decode_value :: proc(buffer: []u8, type: Type, index: ^int) -> (value: Value, ok: bool) {
 	switch type {
-		case .VARINT:
-			value = decode_varint(buffer, index) or_return
-			ok = true
-		case .I32:
-			value = decode_fixed(Value_I32, buffer, index) or_return
-			ok = true
-		case .I64:
-			value = decode_fixed(Value_I64, buffer, index) or_return
-			ok = true
-		case .LEN:
-			len_varint := decode_varint(buffer, index) or_return
-			len := int(len_varint)
-			value = make(Value_LEN, len)
-			copy(([]u8)(value.(Value_LEN)), buffer[index^:index^ + len])
-			index^ += len
-			ok = true
-		case .SGROUP, .EGROUP:
-			fmt.eprintf("%v field type is deprecated\n", type)
-        case:
-            fmt.eprintf("can't decode value with unknown type %d\n", type)
-            return value, false
+	case .VARINT:
+		value = decode_varint(buffer, index) or_return
+		ok = true
+	case .I32:
+		value = decode_fixed(Value_I32, buffer, index) or_return
+		ok = true
+	case .I64:
+		value = decode_fixed(Value_I64, buffer, index) or_return
+		ok = true
+	case .LEN:
+		len_varint := decode_varint(buffer, index) or_return
+		length := int(len_varint)
+		if length < 0 || index^ + length > len(buffer) {
+			fmt.eprintf("Failed to decode LEN: out of bounds or invalid length\n")
+			return value, false
+		}
+		value = make(Value_LEN, length)
+		copy(([]u8)(value.(Value_LEN)), buffer[index^:index^ + length])
+		index^ += length
+		ok = true
+	case .SGROUP, .EGROUP:
+		fmt.eprintf("%v field type is deprecated\n", type)
+	case:
+		fmt.eprintf("can't decode value with unknown type %d\n", type)
+		return value, false
 	}
 
 	return value, ok
@@ -88,7 +122,7 @@ decode_packed :: proc(value: Value_LEN, elem_type: Type) -> (result: []Value, ok
 	}
 
 	buffer := ([]u8)(value)
-	elems := make([dynamic]Value, context.temp_allocator)
+	elems := make([dynamic]Value, context.allocator)
 	for index := 0; index < len(value); {
 		elem := decode_value(buffer, elem_type, &index) or_return
 		append(&elems, elem)
@@ -100,17 +134,15 @@ decode_packed :: proc(value: Value_LEN, elem_type: Type) -> (result: []Value, ok
 decode :: proc(buffer: []u8) -> (message: Message, ok: bool) {
 	message.fields = make(map[u32]Field)
 
-	value_map := make_map(map[u32]([dynamic]Value), allocator = context.temp_allocator)
+	value_map := make_map(map[u32]([dynamic]Value), allocator = context.allocator)
+	defer delete(value_map)
 
 	for index := 0; index < len(buffer); {
 		tag := decode_tag(buffer, &index) or_return
 		value := decode_value(buffer, tag.type, &index) or_return
 
 		if tag.field_number not_in value_map {
-			value_map[tag.field_number] = make(
-				[dynamic]Value,
-				allocator = context.temp_allocator,
-			)
+			value_map[tag.field_number] = make([dynamic]Value, allocator = context.allocator)
 
 			message.fields[tag.field_number] = {
 				tag = tag,

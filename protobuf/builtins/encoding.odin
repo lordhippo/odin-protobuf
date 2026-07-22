@@ -5,12 +5,12 @@ import "../wire"
 // VARINT-backing
 
 encode_int32 :: proc(value: i32) -> wire.Value_VARINT {
-	// TODO: verify if 32-bits int also occupy 64 bits when negative
+	// 32-bit negative numbers gets sign-extended to 64
 	return encode_int64(i64(value))
 }
 
 encode_int64 :: proc(value: i64) -> wire.Value_VARINT {
-	return transmute(wire.Value_VARINT)value
+	return cast(wire.Value_VARINT)value
 }
 
 encode_uint32 :: proc(value: u32) -> wire.Value_VARINT {
@@ -32,14 +32,12 @@ encode_enum :: proc(value: Enum_Wire_Type) -> wire.Value_VARINT {
 }
 
 encode_sint32 :: proc(value: i32) -> wire.Value_VARINT {
-	value_u32 := transmute(u32)value
-	value_zigzag := (value_u32 << 1) ~ (value_u32 >> 31)
+	value_zigzag := cast(u32)((value << 1) ~ (value >> 31))
 	return encode_uint32(value_zigzag)
 }
 
 encode_sint64 :: proc(value: i64) -> wire.Value_VARINT {
-	value_u64 := transmute(u64)value
-	value_zigzag := (value_u64 << 1) ~ (value_u64 >> 63)
+	value_zigzag := cast(u64)((value << 1) ~ (value >> 63))
 	return encode_uint64(value_zigzag)
 }
 
@@ -50,7 +48,7 @@ encode_sfixed32 :: proc(value: i32) -> wire.Value_I32 {
 }
 
 encode_fixed32 :: proc(value: u32) -> wire.Value_I32 {
-	return transmute(wire.Value_I32)value
+	return cast(wire.Value_I32)value
 }
 
 encode_float :: proc(value: f32) -> wire.Value_I32 {
@@ -64,7 +62,7 @@ encode_sfixed64 :: proc(value: i64) -> wire.Value_I64 {
 }
 
 encode_fixed64 :: proc(value: u64) -> wire.Value_I64 {
-	return transmute(wire.Value_I64)value
+	return cast(wire.Value_I64)value
 }
 
 encode_double :: proc(value: f64) -> wire.Value_I64 {

@@ -1,5 +1,6 @@
 package protobuf_wire
 
+import "core:encoding/endian"
 import "core:encoding/varint"
 import "core:fmt"
 import "core:math/bits"
@@ -24,14 +25,27 @@ encode_varint :: proc(value: $T, buffer: ^[dynamic]u8) -> bool {
 }
 
 @(private = "file")
-encode_fixed :: proc(value: $T, buffer: ^[dynamic]u8) -> bool {
-	if error := non_zero_resize(buffer, len(buffer) + size_of(T)); error == .None {
-		value_ref: ^T = transmute(^T)&buffer[len(buffer) - size_of(T)]
-		value_ref^ = value
-		return true
-	} else {
+encode_fixed :: proc(
+	value: $T,
+	buffer: ^[dynamic]u8,
+) -> bool where T == Value_I32 ||
+	T == Value_I64 {
+	if error := non_zero_resize(buffer, len(buffer) + size_of(T)); error != .None {
 		return false
 	}
+
+	start := len(buffer) - size_of(T)
+	dst := buffer[start:len(buffer)]
+
+	when T == Value_I32 {
+		raw := transmute(u32)value
+		return endian.put_u32(dst, .Little, raw)
+	} else when T == Value_I64 {
+		raw := transmute(u64)value
+		return endian.put_u64(dst, .Little, raw)
+	}
+
+	return false
 }
 
 @(private = "file")
@@ -46,22 +60,22 @@ encode_tag :: proc(tag: Tag, buffer: ^[dynamic]u8) -> bool {
 @(private = "file")
 encode_value :: proc(value: Value, buffer: ^[dynamic]u8) -> bool {
 	switch v in value {
-		case Value_VARINT:
-			encode_varint(v, buffer) or_return
-		case Value_I32:
-			encode_fixed(v, buffer) or_return
-		case Value_I64:
-			encode_fixed(v, buffer) or_return
-		case Value_LEN:
-			encode_varint(u32(len(v)), buffer) or_return
-			non_zero_resize(buffer, len(buffer) + len(v))
-			copy(buffer[len(buffer) - len(v):], ([]u8)(v))
+	case Value_VARINT:
+		encode_varint(v, buffer) or_return
+	case Value_I32:
+		encode_fixed(v, buffer) or_return
+	case Value_I64:
+		encode_fixed(v, buffer) or_return
+	case Value_LEN:
+		encode_varint(u32(len(v)), buffer) or_return
+		non_zero_resize(buffer, len(buffer) + len(v))
+		copy(buffer[len(buffer) - len(v):], ([]u8)(v))
 	}
 	return true
 }
 
 encode_packed :: proc(values: []Value) -> (result: Value_LEN, ok: bool) {
-	buffer := make([dynamic]u8, context.temp_allocator)
+	buffer := make([dynamic]u8, context.allocator)
 
 	for value in values {
 		encode_value(value, &buffer) or_return
@@ -71,7 +85,7 @@ encode_packed :: proc(values: []Value) -> (result: Value_LEN, ok: bool) {
 }
 
 encode :: proc(message: Message) -> (buffer: []u8, ok: bool) {
-	buffer_dyn := make([dynamic]u8)
+	buffer_dyn := make([dynamic]u8, context.allocator)
 
 	for _, field in message.fields {
 		for value in field.values {

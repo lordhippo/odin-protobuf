@@ -4,5 +4,5 @@
 	"tabs": true,
 	"tabs_width": 4,
 	"newline_limit": 1,
-	"indent_cases": true
+	"indent_cases": false
 }

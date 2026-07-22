@@ -5,12 +5,11 @@ import "../wire"
 // VARINT-backing
 
 decode_int32 :: proc(value: wire.Value_VARINT) -> i32 {
-	// TODO: verify if 32-bits int also occupy 64 bits when negative
 	return i32(decode_int64(value))
 }
 
 decode_int64 :: proc(value: wire.Value_VARINT) -> i64 {
-	return transmute(i64)value
+	return cast(i64)value
 }
 
 decode_uint32 :: proc(value: wire.Value_VARINT) -> u32 {
@@ -22,13 +21,8 @@ decode_uint64 :: proc(value: wire.Value_VARINT) -> u64 {
 }
 
 decode_bool :: proc(value: wire.Value_VARINT) -> bool {
-	// Bools are encoded as if they were int32s
-	value_i32 := decode_int32(value)
-	assert(
-		value_i32 == 0x00 || value_i32 == 0x01,
-		"Bools should always encode as either `00` or `01`",
-	)
-	return bool(value_i32)
+	// Protobuf parsers must accept any non-zero value as true
+	return value != 0
 }
 
 decode_enum :: proc(value: wire.Value_VARINT) -> Enum_Wire_Type {
@@ -36,13 +30,13 @@ decode_enum :: proc(value: wire.Value_VARINT) -> Enum_Wire_Type {
 }
 
 decode_sint32 :: proc(value: wire.Value_VARINT) -> i32 {
-	abs_value := i32(value >> 1)
-	return abs_value if (value & 1) == 0 else -abs_value
+	value_u32 := u32(value)
+	return cast(i32)((value_u32 >> 1) ~ u32(-i32(value_u32 & 1)))
 }
 
 decode_sint64 :: proc(value: wire.Value_VARINT) -> i64 {
-	abs_value := i64(value >> 1)
-	return abs_value if (value & 1) == 0 else -abs_value
+	value_u64 := u64(value)
+	return cast(i64)((value_u64 >> 1) ~ u64(-i64(value_u64 & 1)))
 }
 
 // I32-backing
@@ -52,7 +46,7 @@ decode_sfixed32 :: proc(value: wire.Value_I32) -> i32 {
 }
 
 decode_fixed32 :: proc(value: wire.Value_I32) -> u32 {
-	return transmute(u32)value
+	return cast(u32)value
 }
 
 decode_float :: proc(value: wire.Value_I32) -> f32 {
@@ -66,7 +60,7 @@ decode_sfixed64 :: proc(value: wire.Value_I64) -> i64 {
 }
 
 decode_fixed64 :: proc(value: wire.Value_I64) -> u64 {
-	return transmute(u64)value
+	return cast(u64)value
 }
 
 decode_double :: proc(value: wire.Value_I64) -> f64 {

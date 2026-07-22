@@ -1,1 +1,7 @@
 ﻿out
+.DS_Store
+
+validation/out
+validation/*.dSYM
+validation/*.bin
+protobuf.dylib

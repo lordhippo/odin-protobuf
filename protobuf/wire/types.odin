@@ -29,8 +29,7 @@ Value :: union {
 Field :: struct {
 	tag:    Tag,
 	// - non-repeated fields:
-	//     - scalar types: last one wins
-	//     - string / byte[]: concatenate
+	//     - scalar types (incl. string / bytes): last one wins
 	//     - message: merge (concatenate at this level)
 	// - repeated fields: array
 	values: []Value,

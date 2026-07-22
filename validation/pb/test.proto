@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+option go_package = "lordhippo/odin-protobuf/validation/out/go";
+
+enum Status {
+    UNKNOWN = 0;
+    ACTIVE = 1;
+    INACTIVE = 2;
+    DELETED = 3;
+}
+
+message NestedMessage {
+    int32 id = 1;
+    string name = 2;
+    bool flag = 3;
+}
+
+message TestScalars {
+    double v_double = 1;
+    float v_float = 2;
+    int32 v_int32 = 3;
+    int64 v_int64 = 4;
+    uint32 v_uint32 = 5;
+    uint64 v_uint64 = 6;
+    sint32 v_sint32 = 7;
+    sint64 v_sint64 = 8;
+    fixed32 v_fixed32 = 9;
+    fixed64 v_fixed64 = 10;
+    sfixed32 v_sfixed32 = 11;
+    sfixed64 v_sfixed64 = 12;
+    bool v_bool = 13;
+    string v_string = 14;
+    bytes v_bytes = 15;
+}
+
+message TestRepeated {
+    repeated int32 r_int32 = 1;
+    repeated int64 r_int64 = 2;
+    repeated string r_string = 3;
+    repeated bytes r_bytes = 4;
+    repeated NestedMessage r_nested = 5;
+    repeated Status r_enum = 6;
+}
+
+message TestMaps {
+    map<string, string> m_string_string = 1;
+    map<int32, string> m_int32_string = 2;
+    map<string, NestedMessage> m_string_nested = 3;
+    map<uint32, Status> m_uint32_enum = 4;
+}
+
+message TestAllTypes {
+    TestScalars scalars = 1;
+    TestRepeated repeateds = 2;
+    TestMaps maps = 3;
+    NestedMessage nested = 4;
+    Status status = 5;
+}
