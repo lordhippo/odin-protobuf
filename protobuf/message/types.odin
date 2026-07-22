@@ -86,6 +86,15 @@ field_tag_lookup_bool :: proc(
 	return strconv.parse_bool(bool_str)
 }
 
+// Fields without an `id` tag are not part of the proto schema and are ignored
+// by both encoding and decoding, so structs may carry extra user-defined data.
+@(private = "package")
+struct_field_is_proto :: proc(message: any, field_idx: int) -> bool {
+	field_rtti := reflect.struct_field_at(message.id, field_idx)
+	_, has_id := reflect.struct_tag_lookup(field_rtti.tag, "id")
+	return has_id
+}
+
 @(private = "package")
 struct_field_info :: proc(
 	message: any,

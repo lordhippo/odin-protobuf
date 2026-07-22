@@ -36,6 +36,10 @@ decode_fill :: proc(message: any, buffer: []u8) -> (ok: bool) {
 	field_count := struct_field_count(message) or_return
 
 	for field_idx in 0 ..< field_count {
+		if !struct_field_is_proto(message, field_idx) {
+			continue
+		}
+
 		field_info := struct_field_info(message, field_idx) or_return
 		wire_field := wire_message.fields[field_info.proto_id]
 
