@@ -15,7 +15,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            exe: example
+          - os: macos-latest
+            exe: example
+          # Windows requires an explicit executable extension on -out:
+          - os: windows-latest
+            exe: example.exe
 
     steps:
       - name: Checkout
@@ -27,7 +34,7 @@ jobs:
           release: dev-2026-07
 
       - name: Build examples
-        run: odin build examples -out:example
+        run: odin build examples -out:${{ matrix.exe }}
 
       - name: Run spec tests
         working-directory: validation
